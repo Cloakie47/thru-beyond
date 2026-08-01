@@ -61,21 +61,25 @@ established.
 Strict rule applied: if the spec says it anywhere, it is CONFIRMS, not
 UNDOCUMENTED.
 
-**CONFIRMS SPEC (9):** 1 CU per instruction-encoding byte (4/2 rates);
+**CONFIRMS SPEC (11):** 1 CU per instruction-encoding byte (4/2 rates);
 per-width load costs; per-width store costs; cost tracks bytes not
 instruction count (the core rule); 512 syscall base with per-call extras on
 top; anonymous page allocation = 4,096 per page (magnitude); CoW
 copy-on-first-write mechanism; per-byte charge on event/log/proof payload
-(core rule); deterministic execution (129/129 measurement cells identical
-across runs).
+(core rule); deterministic execution (150+ measurement cells identical
+across runs); CPI instruction data delivered in registers a0/a1; account
+indices transaction-global under CPI ("same transaction context").
 
-**CORRECTS SPEC (4):** CoW cost is per byte present in the copied page, not
+**CORRECTS SPEC (6):** CoW cost is per byte present in the copied page, not
 "exactly 4,096 per page fault"; reads of untouched account pages incur no
 page-fault charge at all; `tsys_exit` costs 0 despite the blanket 512
 syscall base; the CLI's `--compute-units` help text contradicts itself
-(prose 1,000,000,000 vs actual default 300,000,000).
+(prose 1,000,000,000 vs actual default 300,000,000); maximum call depth is
+15, not the SDK header's "16 call depths (1..16)"; a callee's `tsdk_revert`
+aborts the whole transaction — the C reference's catch-via-`invoke_err`
+pattern only applies to syscall-level invoke errors.
 
-**UNDOCUMENTED (14):** entry stub maps exactly one 4KB stack page and the
+**UNDOCUMENTED (17):** entry stub maps exactly one 4KB stack page and the
 stack never grows on demand; every transaction's floor therefore includes
 512 + 4,096 before user code; program image including .data/.bss is
 read-only — no writable globals; .bss is stored in the image (binary
@@ -85,14 +89,19 @@ resize growth = 1 CU/byte grown with constant-cost shrink; resize SU =
 ceil(bytes grown/4096); delete requires data size 0 and refunds nothing;
 `set_anonymous_segment_sz` rejects non-page-multiple sizes; failed
 transactions report no consumed CU anywhere; `Pages Used` is a mixed meter;
-Zknh SHA-256 speedup is 1.30× (quantified).
+Zknh SHA-256 speedup is 1.30× (quantified); CPI pricing (1,511 CU per
+same-depth hop, +4,096 per depth level, frame pages reused across
+sequential hops); the SDK txn accessors read top-level data, so
+quickstart-pattern programs cannot be CPI callees; CPI events attribute to
+the emitting frame's program.
 
-**UNVERIFIED (7):** the per-byte reading of anonymous allocation; the
+**UNVERIFIED (8):** the per-byte reading of anonymous allocation; the
 ~1,430 CU create-syscall residual attribution; 04's intercept instruction
 term (never independently counted); the docs-figure reconciliation
 attribution; the event-header layout interpretation; deployment cost as a
 function of binary size (single sample); the `user_error` register-echo
-interpretation.
+interpretation; the invoke syscall's ~256 CU register-save surcharge
+(consistent-with, not isolated).
 
 Out-of-sample check against the docs' quickstart (104-byte proof): the model
 predicts create = 7,695 vs the docs' 7,524 (+2.27%) and increment-with-event
@@ -168,6 +177,7 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | [04-hash](examples/04-hash/README.md) | SHA-256, Zknh instructions (arm B) | 15,997–648,589 | 0 | 2 | 1 | 2,744 B | `taUgLhBWu3NCyYud3ioz-8XS-K8ly2BxzHk3-HRaQ0MMcb` |
 | [05-events](examples/05-events/README.md) | Page-charge experiment (4 instr, 8-page stack) | 34,107–165,919 | 0 | 8–11 | 0–1 | 534 B | `tay1XampjPF__geQXy0YoyM24cCKzL6_AcTS-VTV2C-Add` |
 | [06-instructions](examples/06-instructions/README.md) | Instruction term measured directly (spin loops, log/grow probes) | 4,924–164,928 | 0 | 1–2 | 0 | 420 B | `ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu` |
+| [07-cpi](examples/07-cpi/README.md) | CPI: 1,511/hop, +4,096/depth, max depth 15 | 4,925–89,038 | 0 | 1–16 | 0–1 | 848 B + 734 B | `ta9TmfhHffn5hJ3P83hC8NtwERjworfg7pSGxU_GrEPEmy` |
 
 Deploying an 838 B program cost **320,292 CU** across five transactions
 (measured breakdown in the 03 README).

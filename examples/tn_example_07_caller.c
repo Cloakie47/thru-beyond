@@ -31,12 +31,6 @@ typedef struct __attribute__((packed)) {
     ushort self_idx;
 } ex07_callee_args_t;
 
-/* ex02's increment_e wire format, for the account-passing test */
-typedef struct __attribute__((packed)) {
-    uint   instruction_type;
-    ushort account_index;
-} ex02_op_args_t;
-
 static void ex07_invoke_callee(uint op, uint depth, ushort callee_idx) {
     ex07_callee_args_t a;
     a.op = op;
@@ -52,11 +46,10 @@ static void ex07_invoke_callee(uint op, uint depth, ushort callee_idx) {
     }
 }
 
-TSDK_ENTRYPOINT_FN void start(void) {
-    tsdk_txn_t const *txn = tsdk_get_txn();
-    uchar const *instruction_data = tsdk_txn_get_instr_data(txn);
-    ulong instruction_data_sz = tsdk_txn_get_instr_data_sz(txn);
-
+/* Instruction data via entrypoint registers (see callee comment) — works
+   for top-level execution too, since the VM initializes a0/a1 the same way. */
+TSDK_ENTRYPOINT_FN void start(uchar const *instruction_data,
+                              ulong instruction_data_sz) {
     if (instruction_data_sz != sizeof(ex07_caller_args_t)) {
         tsdk_revert(EX07_ERR_BAD_SIZE);
     }
@@ -105,21 +98,12 @@ TSDK_ENTRYPOINT_FN void start(void) {
             break;
         }
         case EX07_INSTR_CPI_FOREIGN: {
-            /* invoke ex02's increment_e on the account at aux_idx — the
-               emitted counter value proves whether the callee saw the same
-               transaction account indices */
-            ex02_op_args_t a;
-            a.instruction_type = 2U;
-            a.account_index = args->aux_idx;
-            ulong invoke_err = 0UL;
-            ulong r = tsys_invoke(&a, sizeof(a), callee_idx, NULL,
-                                  &invoke_err);
-            if (r != TSDK_SUCCESS) {
-                tsdk_revert(EX07_ERR_INVOKE + r);
-            }
-            if (invoke_err != TSDK_SUCCESS) {
-                tsdk_revert(invoke_err);
-            }
+            /* account-index identity probe: callee op 3 reads the u64 at
+               offset 0 of the account at aux_idx and emits it. (The original
+               plan — invoking ex02's increment_e — is impossible: ex02 reads
+               instruction data via the txn accessors, which under CPI see
+               the caller's top-level data. Documented in the README.) */
+            ex07_invoke_callee(3U, (uint)args->aux_idx, callee_idx);
             tsdk_return(TSDK_SUCCESS);
             break;
         }

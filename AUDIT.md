@@ -105,6 +105,51 @@ exactly. (2) Non-linear scaling, differing intercepts, or the re-run missing
 7,855. ΔCU = Δproof exactly, three distinct sizes. (2) Constant cost or
 non-unit slope. (3) Yes.
 
+## Example 07 (CPI) — added 2026-08-02, predictions committed at `81b3c04`
+
+**Per-hop and per-depth CPI cost (1,511 same-depth; 5,607 = 1,511 + 4,096
+per depth level). UNDOCUMENTED.** (1) `cpi_n` N=1,2,4,8 and `cpi_deep`
+N=1..14, three runs each, exact slopes at every pair, Pages flat (breadth)
+vs 2+N (depth). (2) Any nonlinearity, a 4,096 step per sequential hop
+(H-B), or no step per depth (H-A) — three pre-stated hypotheses, mutually
+exclusive. (3) Yes; H-C won.
+
+**Frame page reused across sequential same-depth invokes. UNDOCUMENTED.**
+(1) `cpi_n` slope 1,511 with Pages flat vs first-hop 5,567. (2) Slope ≈
+5,600 with Pages growing would have meant freed-on-return. (3) Yes.
+
+**Maximum call depth is 15; depth 16 unreachable, invoke returns −24.
+CORRECTS the SDK header** ("16 call depths (1..16)"). (1) `cpi_deep`
+N=14 succeeds (depth 15), N=15/16/17 all fail with our 0x7C00 + (−24)
+wrapper. (2) N=15 succeeding. (3) Yes.
+
+**A callee's `tsdk_revert` aborts the whole transaction; the caller cannot
+catch it. CORRECTS the C reference's implication** that `invoke_err` lets
+callers branch on callee failure. (1) `cpi_revert` absorbs both codes and
+emits them — the transaction still failed with the callee's 0x7BAD and no
+event. (2) A successful transaction with the emitted codes. (3) Yes.
+Nuance: *syscall-level* invoke errors (e.g. −24) DO return in
+`invoke_result` and are catchable.
+
+**Account indices are transaction-global under CPI. CONFIRMS SPEC**
+("same transaction context"). (1) CPI callee read the u64 at index 2 and
+emitted 3 — account d's known counter. (2) A wrong value, NULL pointer, or
+fault. (3) Yes.
+
+**CPI instruction data via registers (a0/a1). CONFIRMS SPEC (invoke page
+documents it) — but the SDK accessor trap is UNDOCUMENTED:**
+`tsdk_txn_get_instr_data()` reads the top-level transaction, so
+quickstart-pattern programs (ex02 included) reject or misparse CPI data.
+(1) First-draft callee failed every CPI on its own size check with the
+caller's 12-byte payload; register-arg rewrite fixed it. (2) The txn
+accessors returning per-frame data. (3) Yes.
+
+**Invoke costs ≈ 512 + ~256 beyond the callee's instructions — consistent
+with the documented 256-byte register save being charged as writes.
+UNVERIFIED**: the ~487 CU hop residual splits into callee-path (~230,
+estimated from disassembly, not exactly counted) + ~256; the terms were not
+isolated.
+
 ## UNVERIFIED (flagged in README until a discriminating experiment exists)
 
 **"Every page charge is 1 CU per byte zero-filled" as applied to anonymous

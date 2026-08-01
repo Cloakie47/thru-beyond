@@ -25,12 +25,14 @@ the formula: execution is exactly linear (calibrate one size, predict any
 other to ~0.01%), and `Pages Used` is not a cost meter (it counts uncharged
 event pages too).
 
-**Domain of validity:** single program per transaction on alphanet under CLI
-0.3.2; no cross-program invocation, no heap-segment measurements, syscall
-base verified for 6 of the 16 syscalls (log, emit, set-segment,
-set-writable, resize, delete — plus exit = 0); account sizes tested 0–65,536
-bytes; instruction term verified on ALU/load/store loop bodies. Outside
-that envelope this model is extrapolation.
+**Domain of validity:** alphanet under CLI 0.3.2; syscall base verified for
+7 of the 16 syscalls (log, emit, set-segment, set-writable, resize, delete,
+invoke — plus exit = 0); account sizes tested 0–65,536 bytes; instruction
+term verified on ALU/load/store loop bodies; cross-program invocation
+priced to depth 15 (example 07: 1,511 CU per same-depth hop, +4,096 per
+depth level, frame pages reused for breadth; callee reverts abort the whole
+transaction). No heap-segment measurements. Outside that envelope this
+model is extrapolation.
 
 ## Where the findings stand against the spec (strict labels)
 

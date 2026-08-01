@@ -3,13 +3,18 @@
 #include <thru-sdk/c/tn_sdk.h>
 #include <thru-sdk/c/tn_sdk_syscall.h>
 
-/* Example 07 callee: deliberately tiny so its per-hop instruction term is
-   countable from the disassembly. Ops: 0 return, 1 revert, 2 recurse to a
-   given depth (re-invokes itself via its own transaction account index,
-   which the caller passes in the instruction data). */
+/* Example 07 callee: deliberately tiny. CPI-CRITICAL DETAIL: instruction
+   data reaches an invoked program via the entrypoint's registers (a0 =
+   pointer, a1 = size — entrypoint.S saves a0 and passes it to start), NOT
+   via tsdk_txn_get_instr_data(), which always reads the TOP-LEVEL
+   transaction. A first draft used the txn accessors and rejected every
+   CPI with its own size check. Ops: 0 return, 1 revert, 2 recurse to a
+   given depth, 3 read the u64 at offset 0 of the account at `depth` and
+   emit it (account-index identity probe). */
 
 #define EX07C_ERR_BAD_SIZE (0x7000UL)
 #define EX07C_ERR_BAD_OP   (0x7001UL)
+#define EX07C_ERR_DATA_PTR (0x7002UL)
 #define EX07C_ERR_REVERT   (0x7BADUL)
 #define EX07C_ERR_INVOKE   (0x7C00UL)
 
@@ -19,11 +24,8 @@ typedef struct __attribute__((packed)) {
     ushort self_idx;
 } ex07_callee_args_t;
 
-TSDK_ENTRYPOINT_FN void start(void) {
-    tsdk_txn_t const *txn = tsdk_get_txn();
-    uchar const *instruction_data = tsdk_txn_get_instr_data(txn);
-    ulong instruction_data_sz = tsdk_txn_get_instr_data_sz(txn);
-
+TSDK_ENTRYPOINT_FN void start(uchar const *instruction_data,
+                              ulong instruction_data_sz) {
     if (instruction_data_sz != sizeof(ex07_callee_args_t)) {
         tsdk_revert(EX07C_ERR_BAD_SIZE);
     }
@@ -51,6 +53,15 @@ TSDK_ENTRYPOINT_FN void start(void) {
         if (invoke_err != TSDK_SUCCESS) {
             tsdk_revert(invoke_err);
         }
+        tsdk_return(TSDK_SUCCESS);
+    } else if (args->op == 3U) {
+        ulong const *p =
+            (ulong const *)tsdk_get_account_data_ptr((ushort)args->depth);
+        if (p == NULL) {
+            tsdk_revert(EX07C_ERR_DATA_PTR);
+        }
+        ulong v = *p;
+        tsys_emit_event(&v, sizeof(v));
         tsdk_return(TSDK_SUCCESS);
     }
     tsdk_revert(EX07C_ERR_BAD_OP);
