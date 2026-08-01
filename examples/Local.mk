@@ -5,3 +5,8 @@ $(call make-bin,tn_example_01_empty_c,tn_example_01_empty,,-ltn_sdk)
 # Example 03 — page-fault cost experiment
 
 $(call make-bin,tn_example_03_storage_c,tn_example_03_storage,,-ltn_sdk)
+
+# Example 04 — SHA-256: portable C (arm A) vs Zknh instructions (arm B)
+
+$(call make-bin,tn_example_04_hash_a_c,tn_example_04_hash_a,,-ltn_sdk)
+$(call make-bin,tn_example_04_hash_b_c,tn_example_04_hash_b,,-ltn_sdk)
