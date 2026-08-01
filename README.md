@@ -59,8 +59,16 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | [01-noop](examples/01-noop/README.md) | Empty entrypoint, returns success | 4,763 | 0 | 1 | 0 | 138 B | `taIjGXEaz6jCa8ORd1YWClEQgbxCdw-hDSpzGtYkZAXk-_` |
 | 02-counter | *(not yet measured)* | | | | | | |
 | [03-storage](examples/03-storage/README.md) | Page-fault cost experiment (4 instructions) | 4,892–13,659 | 0 | 1–3 | 0 | 838 B | `tasFvCl6TciwEVQO1tU-UJ2qDt7KXtx86qaZzWRf7l9_d1` |
+| [04-hash](examples/04-hash/README.md) | SHA-256, portable C (arm A), 0–4096 B input | 18,959–841,119 | 0 | 2 | 1 | 3,496 B | `ta-rWexuBmL558uxLZXqOb23DM0HeThZGSxG2mOm3-6oxv` |
+| [04-hash](examples/04-hash/README.md) | SHA-256, Zknh instructions (arm B) | 15,997–648,589 | 0 | 2 | 1 | 2,744 B | `taUgLhBWu3NCyYud3ioz-8XS-K8ly2BxzHk3-HRaQ0MMcb` |
 
 Deploying an 838 B program cost **320,292 CU** across five transactions
 (measured breakdown in the 03 README).
+
+Example 04 tested the model against predictions committed before measurement:
+structure survived (exact linearity — 12,846 CU per 64-byte block portable,
+9,885 with Zknh, common intercept to 1 CU), point predictions missed by
+19–34% (full reckoning in the 04 README). **Zknh SHA-256 speedup: 1.30×.**
+Event-emitting programs use one more written page than noop — budget for it.
 
 All figures: thru CLI 0.3.2+54058649, alphanet, 2026-08-01.
