@@ -10,3 +10,7 @@ $(call make-bin,tn_example_03_storage_c,tn_example_03_storage,,-ltn_sdk)
 
 $(call make-bin,tn_example_04_hash_a_c,tn_example_04_hash_a,,-ltn_sdk)
 $(call make-bin,tn_example_04_hash_b_c,tn_example_04_hash_b,,-ltn_sdk)
+
+# Example 05 — event/stack page charge experiment (one binary, 4 instructions)
+
+$(call make-bin,tn_example_05_events_c,tn_example_05_events,,-ltn_sdk)

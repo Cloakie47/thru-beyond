@@ -21,26 +21,27 @@ deployment of the same binary under a different seed also measured 4,763 —
 the figure is a property of the binary, not the deployment. The canonical
 address for this example is the one below.)
 
-## Where does 4,763 CU go? (HYPOTHESIS)
-
-This decomposition is a hypothesis, not a measurement:
+## Where does 4,763 CU go? (RESOLVED by examples 03 and 05)
 
 ```
-  4,096   one page fault (the single page in "Pages Used: 1")
-    512   one syscall (program termination via tsdk_return)
-    155   actual instruction bytes processed
+  4,096   the one stack page the SDK entry stub maps before start() runs
+    512   the entry stub's set_anonymous_segment_sz syscall (NOT tsdk_return —
+          tsys_exit measures as free)
+    155   instruction bytes processed
   -----
-  4,763
+  4,763   exact
 ```
 
-[03-storage](../03-storage/README.md) tested the page-fault term: writing to
-one additional page adds ~4,100 CU and exactly +1 `Pages Used` (consistent
-with 4,096 + addressing overhead), and the write-path delta over this baseline
-decomposes as 512 + 4,096 + instructions. Both support the numbers above.
-One refinement from 03: the 4,096 charge fires on *written* (copy-on-write)
-pages only — reads of untouched pages cost no page fault and don't increment
-`Pages Used` — so the page term here is presumably a written page (e.g. stack),
-not code.
+An earlier version of this section attributed the 512 to the `tsdk_return`
+syscall. [05-events](../05-events/README.md) showed that assignment cannot be
+right: the SDK entry stub (`entrypoint.S`) itself calls
+`set_anonymous_segment_sz` to map exactly one 4KB stack page — that syscall
+and that page allocation are the 512 + 4,096, and every reconciliation only
+lands exactly if `tsys_exit` costs 0. The "1 page" every minimal program
+shows is the entry stub's mapped stack page, charged at allocation.
+[03-storage](../03-storage/README.md) established the account-page half:
+account data pages charge 4,096 on first write (copy-on-write), reads are
+free.
 
 - **Binary size:** 138 bytes (`build/thruvm/bin/tn_example_01_empty_c.bin`)
 - **Program account:** `taIjGXEaz6jCa8ORd1YWClEQgbxCdw-hDSpzGtYkZAXk-_`
