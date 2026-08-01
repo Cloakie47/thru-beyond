@@ -23,6 +23,10 @@ $(call make-bin,tn_example_05_events_c,tn_example_05_events,,-ltn_sdk)
 
 $(call make-bin,tn_example_06_instructions_c,tn_example_06_instructions,,-ltn_sdk)
 
+# Example 08 — account compression round trip
+
+$(call make-bin,tn_example_08_compression_c,tn_example_08_compression,,-ltn_sdk)
+
 # Example 07 — cross-program invocation pricing
 
 $(call make-bin,tn_example_07_callee_c,tn_example_07_callee,,-ltn_sdk)
