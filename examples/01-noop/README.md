@@ -18,7 +18,29 @@ node 0.0.0-local+599daf60, measured 2026-08-01.
 
 Identical across runs, as deterministic execution requires. (An earlier
 deployment of the same binary under a different seed also measured 4,763 —
-the figure is a property of the binary, not the deployment.)
+the figure is a property of the binary, not the deployment. The canonical
+address for this example is the one below.)
+
+## Where does 4,763 CU go? (HYPOTHESIS)
+
+This decomposition is a hypothesis, not a measurement:
+
+```
+  4,096   one page fault (the single page in "Pages Used: 1")
+    512   one syscall (program termination via tsdk_return)
+    155   actual instruction bytes processed
+  -----
+  4,763
+```
+
+[03-storage](../03-storage/README.md) tested the page-fault term: writing to
+one additional page adds ~4,100 CU and exactly +1 `Pages Used` (consistent
+with 4,096 + addressing overhead), and the write-path delta over this baseline
+decomposes as 512 + 4,096 + instructions. Both support the numbers above.
+One refinement from 03: the 4,096 charge fires on *written* (copy-on-write)
+pages only — reads of untouched pages cost no page fault and don't increment
+`Pages Used` — so the page term here is presumably a written page (e.g. stack),
+not code.
 
 - **Binary size:** 138 bytes (`build/thruvm/bin/tn_example_01_empty_c.bin`)
 - **Program account:** `taIjGXEaz6jCa8ORd1YWClEQgbxCdw-hDSpzGtYkZAXk-_`
