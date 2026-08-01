@@ -1,0 +1,5 @@
+# Beyond — Thru example programs
+
+BASEDIR:=$(CURDIR)/build
+THRU_C_SDK_DIR:=$(HOME)/.thru/sdk/c/thru-sdk
+include $(THRU_C_SDK_DIR)/thru_c_program.mk

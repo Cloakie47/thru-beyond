@@ -1,0 +1,10 @@
+# Build artifacts — never commit (repo rule)
+build/
+
+# Anything key-bearing — never commit (repo rule)
+.thru/
+*.key
+*.seed
+
+# Local-only Claude settings
+.claude/settings.local.json
