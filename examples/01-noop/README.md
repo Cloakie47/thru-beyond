@@ -25,11 +25,17 @@ address for this example is the one below.)
 
 ```
   4,096   the one stack page the SDK entry stub maps before start() runs
+          (exactly 4,096: disassembly shows `lui t4,0x1; sub a0,t3,t4`)
     512   the entry stub's set_anonymous_segment_sz syscall (NOT tsdk_return —
           tsys_exit measures as free)
-    155   instruction bytes processed
+    114   executed instruction bytes (counted from the disassembly)
+      5   data loads on the entry path (lbu 1 + lhu 2 + lhu 2)
+     32   the four 8-byte `sd` stores — store bytes are charged 1 CU/byte,
+          measured directly in example 06 (this was the bulk of the old
+          "36 CU gap")
+      4   UNEXPLAINED (~one instruction; within hand-count error, flagged)
   -----
-  4,763   exact
+  4,763
 ```
 
 An earlier version of this section attributed the 512 to the `tsdk_return`

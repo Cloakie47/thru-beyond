@@ -96,6 +96,19 @@ Reconciled, not contradicted:
   proof size is unstated. Δ235–267 ≈ a modestly smaller proof plus shape
   differences. **No evidence of a real cost-model change.**
 
+## Addendum (2026-08-02 audit): predictions that held
+
+- **CoW discriminator**: increment on a 100-byte account measured **5,615**
+  (predicted 5,615 = 5,523 + 92 more bytes copied) and on a 5,000-byte
+  account **9,611** (predicted 9,611 = first page only, 4,096-byte copy; a
+  whole-account copy would have been 10,515). Per-byte, page-granular CoW —
+  confirmed at byte granularity.
+- **Third proof size**: create with a 264-byte proof = **7,855** = 7,791 + 64.
+  1 CU per proof byte at three distinct sizes (168/200/264).
+- **SU formula discriminated**: resize 4096→8192 consumes **SU = 1** — so
+  SU = ceil(bytes grown / 4096), not floor(target/4096). Non-page-multiple
+  growth also exact in CU: →100 = +92, →5000 = +4,992.
+
 ## Reproduce
 
 ```bash

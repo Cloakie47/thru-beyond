@@ -18,3 +18,7 @@ $(call make-bin,tn_example_04_hash_b_c,tn_example_04_hash_b,,-ltn_sdk)
 # Example 05 — event/stack page charge experiment (one binary, 4 instructions)
 
 $(call make-bin,tn_example_05_events_c,tn_example_05_events,,-ltn_sdk)
+
+# Example 06 — direct measurement of the instruction term
+
+$(call make-bin,tn_example_06_instructions_c,tn_example_06_instructions,,-ltn_sdk)

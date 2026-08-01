@@ -26,10 +26,33 @@ CU ≈ 4,096 × (charged pages) + 512 × (charged syscalls)
 | Event buffer page | **no** | **yes** | 05: emit cost = 570 + 1·N exactly, continuous through both page boundaries while `Pages Used` steps 9→10→11 (boundary at N+10 per event: 10-byte record overhead, measured per-event via a two-event probe) |
 
 `Pages Used` is therefore a mixed meter — it counts charged pages *and*
-uncharged event pages. Do not read it as CU/4,096. The deeper pattern
-(02 + 05): **"4,096 per page" is nowhere a primitive — every page charge
-measured so far is 1 CU per byte zero-filled, copied, or processed**, which
-equals 4,096 only when the unit of work is a full page.
+uncharged event pages. Do not read it as CU/4,096.
+
+**The instruction term is now measured, not assumed**
+([06-instructions](examples/06-instructions/README.md)): 1 CU per encoding
+byte, exactly — 4 CU per 32-bit instruction, 2 per compressed, ratio 1.000
+against disassembled ground truth at every loop size. Cost tracks **bytes,
+not instruction count** (the same four instructions cost double when
+assembled full-width). Loads *and stores* add 1 CU per byte accessed —
+stores were previously assumed free, and they are not.
+
+For account data the per-byte law is verified at byte granularity (CoW
+copies, resize growth, at sizes 8/100/4096/5000/8192). For anonymous
+segments it is **UNVERIFIED and unverifiable as stated**:
+`set_anonymous_segment_sz` rejects non-page-multiple sizes, so "4,096 per
+page" vs "1 CU per zero-filled byte" cannot be distinguished — treat
+anonymous allocation as 4,096 per page, and the per-byte reading as
+interpretation. See [AUDIT.md](AUDIT.md) for the falsifiability review of
+every finding; anything labeled UNVERIFIED there is not established.
+
+Out-of-sample check against the docs' quickstart (104-byte proof): the model
+predicts create = 7,695 vs the docs' 7,524 (+2.27%) and increment-with-event
+= 6,065 vs 5,980 (+1.42%). Residuals are shape/SDK-version sized but
+**unexplained** without the quickstart's binary.
+
+Known open item: 01-noop's floor reconciles to within **4 CU** (was 36 —
+the difference was store bytes, now measured); the final 4 CU is
+unexplained.
 
 **What counts as a charged syscall:** every syscall measured so far costs the
 512 base (`tsys_emit_event`: 570 total incl. call setup;
@@ -95,6 +118,7 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | [04-hash](examples/04-hash/README.md) | SHA-256, portable C (arm A), 0–4096 B input | 18,959–841,119 | 0 | 2 | 1 | 3,496 B | `ta-rWexuBmL558uxLZXqOb23DM0HeThZGSxG2mOm3-6oxv` |
 | [04-hash](examples/04-hash/README.md) | SHA-256, Zknh instructions (arm B) | 15,997–648,589 | 0 | 2 | 1 | 2,744 B | `taUgLhBWu3NCyYud3ioz-8XS-K8ly2BxzHk3-HRaQ0MMcb` |
 | [05-events](examples/05-events/README.md) | Page-charge experiment (4 instr, 8-page stack) | 34,107–165,919 | 0 | 8–11 | 0–1 | 534 B | `tay1XampjPF__geQXy0YoyM24cCKzL6_AcTS-VTV2C-Add` |
+| [06-instructions](examples/06-instructions/README.md) | Instruction term measured directly (spin loops, log/grow probes) | 4,924–164,928 | 0 | 1–2 | 0 | 420 B | `ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu` |
 
 Deploying an 838 B program cost **320,292 CU** across five transactions
 (measured breakdown in the 03 README).
