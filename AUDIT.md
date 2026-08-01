@@ -150,6 +150,41 @@ UNVERIFIED**: the ~487 CU hop residual splits into callee-path (~230,
 estimated from disassembly, not exactly counted) + ~256; the terms were not
 isolated.
 
+## Example 08 (compression) — added 2026-08-02, predictions at `a21831a`
+
+**Compression costs ≈ 6,053 + 1 CU per byte of account data; SU = 0 at
+every size (no refund). UNDOCUMENTED.** (1) CLI `account compress` on 8 /
+1,000 / 5,000 / 65,536-byte accounts, figures via `txn get`; slope 1.0005
+across the full range. (2) Flat cost (no hash term) or negative SU (a real
+refund) — the refund outcome was explicitly reachable and would have made
+compression economically real for payers. (3) Yes. **Compression is a
+validator-storage mechanism, not a payer refund.**
+
+**Compression is a system-level operation: fee-payer-signed, on a
+program-owned account, without the owner program. UNDOCUMENTED.** (1) The
+CLI compress transaction succeeded with only the `default` key signing.
+(2) A rejection requiring owner-program involvement. (3) Yes.
+
+**Decompression is impossible on alphanet as deployed. CORRECTS the spec's
+operational claim** that compressed accounts "can be uncompressed": after a
+successful compression, `make-state-proof existing|updating`,
+`prepare-decompression`, and `account decompress` all fail with RPC
+"bintrie: key not found", immediately and after 60+ s. (2) Any of them
+succeeding. (3) Yes — the refutation was one working RPC call away; it
+never came. Consequence: the decompress/modify/recompress costs, the CU per
+byte revived, and the empirical 32 KiB revival ceiling are all UNMEASURED
+(blocked, reported precisely in the README).
+
+**A 90-second-old creating proof is accepted. Refutes this repo's own
+committed prediction** (rejection). (1) Fetch proof, sleep 90 s, create —
+succeeded at the standard CU. (2) The predicted rejection. (3) Yes. The
+tolerance boundary is untested (UNVERIFIED beyond 90 s).
+
+**`tsys_account_compress` from a program: UNRESOLVED.** Both obtainable
+proof kinds revert with syscall error −43; the expected proof shape is
+undocumented and the CLI constructs its own. Two attempts, then time-boxed
+out. Not a finding — a precisely-located blocker.
+
 ## UNVERIFIED (flagged in README until a discriminating experiment exists)
 
 **"Every page charge is 1 CU per byte zero-filled" as applied to anonymous

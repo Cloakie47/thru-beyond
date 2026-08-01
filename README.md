@@ -70,14 +70,17 @@ copy-on-first-write mechanism; per-byte charge on event/log/proof payload
 across runs); CPI instruction data delivered in registers a0/a1; account
 indices transaction-global under CPI ("same transaction context").
 
-**CORRECTS SPEC (6):** CoW cost is per byte present in the copied page, not
+**CORRECTS SPEC (7):** CoW cost is per byte present in the copied page, not
 "exactly 4,096 per page fault"; reads of untouched account pages incur no
 page-fault charge at all; `tsys_exit` costs 0 despite the blanket 512
 syscall base; the CLI's `--compute-units` help text contradicts itself
 (prose 1,000,000,000 vs actual default 300,000,000); maximum call depth is
 15, not the SDK header's "16 call depths (1..16)"; a callee's `tsdk_revert`
 aborts the whole transaction — the C reference's catch-via-`invoke_err`
-pattern only applies to syscall-level invoke errors.
+pattern only applies to syscall-level invoke errors; **decompression of
+compressed accounts is impossible on alphanet as deployed** (every
+decompression-side RPC fails with "bintrie: key not found" on freshly
+compressed leaves — compressed accounts are currently one-way).
 
 **UNDOCUMENTED (17):** entry stub maps exactly one 4KB stack page and the
 stack never grows on demand; every transaction's floor therefore includes
@@ -95,13 +98,21 @@ sequential hops); the SDK txn accessors read top-level data, so
 quickstart-pattern programs cannot be CPI callees; CPI events attribute to
 the emitting frame's program.
 
-**UNVERIFIED (8):** the per-byte reading of anonymous allocation; the
+**UNVERIFIED (10):** the per-byte reading of anonymous allocation; the
 ~1,430 CU create-syscall residual attribution; 04's intercept instruction
 term (never independently counted); the docs-figure reconciliation
 attribution; the event-header layout interpretation; deployment cost as a
 function of binary size (single sample); the `user_error` register-echo
 interpretation; the invoke syscall's ~256 CU register-save surcharge
-(consistent-with, not isolated).
+(consistent-with, not isolated); the ~32,100–32,300-byte single-transaction
+decompression ceiling (analytic only — decompression is broken); the
+creating-proof staleness boundary (90 s accepted; limit untested).
+
+To the UNDOCUMENTED list add (→ 21): compression pricing ≈ 6,053 + 1 CU per
+byte of account data hashed; compression refunds no state units at any size
+(one-way cost — validator-side, not economic for the payer); compression is
+fee-payer-signable on program-owned accounts (system-level operation); the
+proof service currently serves absence (creating) proofs only.
 
 Out-of-sample check against the docs' quickstart (104-byte proof): the model
 predicts create = 7,695 vs the docs' 7,524 (+2.27%) and increment-with-event
@@ -178,6 +189,7 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | [05-events](examples/05-events/README.md) | Page-charge experiment (4 instr, 8-page stack) | 34,107–165,919 | 0 | 8–11 | 0–1 | 534 B | `tay1XampjPF__geQXy0YoyM24cCKzL6_AcTS-VTV2C-Add` |
 | [06-instructions](examples/06-instructions/README.md) | Instruction term measured directly (spin loops, log/grow probes) | 4,924–164,928 | 0 | 1–2 | 0 | 420 B | `ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu` |
 | [07-cpi](examples/07-cpi/README.md) | CPI: 1,511/hop, +4,096/depth, max depth 15 | 4,925–89,038 | 0 | 1–16 | 0–1 | 848 B + 734 B | `ta9TmfhHffn5hJ3P83hC8NtwERjworfg7pSGxU_GrEPEmy` |
+| [08-compression](examples/08-compression/README.md) | Compress ≈ 6,053 + 1 CU/B, SU refund = 0; **decompression broken on alphanet** | 6,061–71,621 | 0 | 1 | 0 | 996 B | `tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY` |
 
 Deploying an 838 B program cost **320,292 CU** across five transactions
 (measured breakdown in the 03 README).
