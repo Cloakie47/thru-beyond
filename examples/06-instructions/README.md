@@ -28,26 +28,31 @@ One binary (420 B), program `ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu`
 | `spin_load` | 4,926 | 114,926 | **11.000** | 11 | **1.000** |
 | `spin_store` | 4,930 | 114,930 | **11.000** | 11 | **1.000** |
 
-**Verdicts:**
+**Verdicts — all four CONFIRM the spec** (`/spec/runtime/resources.md`),
+which states the 1-CU-per-byte core rule, the 4/2 encoding rates, and the
+per-width load *and store* costs explicitly (including a worked `sd`
+example: 4 + 8 = 12 CU):
 
-- **The docs' rate is exactly right**: 4 CU per 32-bit encoding, 2 per
-  compressed — measured ratio 1.000 at every size.
-- **Cost tracks encoding BYTES, not instruction count**: `spin_wide` executes
+- 4 CU per 32-bit encoding, 2 per compressed — measured ratio 1.000 at
+  every size.
+- Cost tracks encoding BYTES, not instruction count: `spin_wide` executes
   the *same four instructions* per iteration as `spin` and costs exactly
-  double — 16 vs 8 — because its encodings are twice the bytes. The per-byte
-  law extends to instructions: **1 CU per instruction byte.**
-- **Loads cost 1 CU per byte accessed on top of the instruction** (`spin_load`
-  = 10 instruction bytes + 1): the docs' claim, confirmed.
-- **Stores are charged the same way** (`spin_store` = 10 + 1) — not previously
-  documented anywhere. This is what closes most of 01-noop's residual gap:
-  the entry/exit path executes four 8-byte `sd` stores = 32 CU that earlier
-  accounting missed.
+  double — which is what "1 CU per byte of instruction processed" implies.
+- Loads cost 1 CU per byte accessed on top of the instruction (`spin_load`
+  = 10 instruction bytes + 1).
+- Stores are charged the same way (`spin_store` = 10 + 1). **The spec
+  documents this; this repo had wrongly assumed stores were free** — an
+  unread spec page, not a VM surprise, is what opened 01-noop's "36 CU
+  gap" (four 8-byte `sd` stores = 32 CU of it). Logged so others don't
+  repeat the assumption.
 
 ## Syscall probes
 
 - `log0` (`tsys_log` with length 0 — a syscall that does nearly nothing):
   5,454 = its dispatch baseline + **530 ≈ 512 + 18**. The 512 base is charged
-  even for a no-op syscall: it is a **per-call base**, not an average.
+  even for a no-op syscall — **confirming the spec's** "base syscall cost:
+  512 CU" with per-call work on top (the repo's earlier "base, not average"
+  phrasing presented this as a finding; the spec already says it).
 - `log8`: 5,462 = log0 + 8 — **1 CU per logged byte.**
 - `grow` (`set_anonymous_segment_sz`): re-setting the same size costs
   540 = 512 + 28; growing by one page costs 4,636 = 512 + 28 + 4,096 (CU

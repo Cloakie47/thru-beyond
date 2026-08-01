@@ -14,29 +14,43 @@ and a third create-proof size.
 
 ## VERIFIED
 
-**Instruction cost = 1 CU per encoding byte (4 CU/32-bit, 2 CU/compressed).**
+**Instruction cost = 1 CU per encoding byte (4 CU/32-bit, 2 CU/compressed).
+CONFIRMS SPEC** — the resources spec states the core rule ("1 CU per byte of
+instruction or data processed") and both rates; the "bytes, not count"
+framing this repo briefly presented as a discovery is that rule restated.
 (1) 06: asm loop bodies with disassembled encodings, N up to 10,000.
 (2) Any slope ≠ predicted bytes; in particular `spin_wide` (same 4
 instructions, double bytes) costing the same as `spin` would have proven
-count-based charging. (3) Yes — and the byte-based result was not
-preordained: slopes measured 8.000/16.000/11.000/11.000 vs prediction, ratio
-1.000. **Cost tracks bytes, not instruction count.** Every residual-based
-figure in the repo rests on this rate; it now stands on direct measurement.
+count-based charging — and *refuted the spec*. (3) Yes. Slopes measured
+8.000/16.000/11.000/11.000 vs prediction, ratio 1.000. Every residual-based
+figure in the repo rests on this rate; it now stands on measurement as well
+as documentation.
 
-**Data loads cost 1 CU/byte on top of the instruction.** (1) 06 `spin_load`.
+**Data loads cost 1 CU/byte on top of the instruction. CONFIRMS SPEC**
+(lb 1 / lh 2 / lw 4 / ld 8 are listed explicitly). (1) 06 `spin_load`.
 (2) Slope 10 (free loads) or 14 (4 CU/load). (3) Yes. Measured 11.
 
-**Data stores cost 1 CU/byte.** (1) 06 `spin_store`. (2) Slope 10. (3) Yes.
-Measured 11. Previously assumed free — this was wrong and closed most of the
-noop residual gap (see Part 4 below).
+**Data stores cost per width. CONFIRMS SPEC — and corrects this repo.**
+The spec documents store costs alongside loads (sb 1 / sh 2 / sw 4 / sd 8,
+with a worked `sd` = 4 + 8 = 12 CU example). This repo assumed stores were
+free, which is what opened the "36 CU gap" — the error was an unread spec
+page, not undocumented VM behavior. (1) 06 `spin_store`. (2) Slope 10.
+(3) Yes. Measured 11 (1.000 vs spec).
 
-**CoW on account write = 1 CU per byte copied, page granularity.**
-(1) 02/03 originally; audit added increments on a 100 B and a 5,000 B
-account with exact predictions written first. (2) 100 B ≠ 5,615 (per-byte)
-or 5,000 B = 10,515 (whole-account copy) or 9,619+ (flat page). (3) Yes —
-three distinguishable outcomes. Measured 5,615 and 9,611: per-byte, first
-page only. This finding earned VERIFIED the honest way: its earlier flat-4,096
-form was refuted by a reachable experiment.
+**CoW on account write = 1 CU per byte *present in the copied page*
+(min(4,096, bytes in page)). CORRECTS SPEC** — resources.md says "each page
+fault costs exactly 4,096 compute units"; measurement says the charge is the
+bytes actually copied. (1) 02/03 originally; audit added increments on a
+100 B and a 5,000 B account; the trailing-page experiment (predictions
+committed at `d74af38` before measurement) wrote single bytes at offsets 0,
+4096, and 4999 of the 5,000-byte account. (2) Offset-4096 costing W0
+(= flat page) vs W0 − 3,192 (= bytes present); both outcomes stated in
+advance. (3) Yes. Measured: `write_at(0)` = 9,656, `write_at(4096)` =
+`write_at(4999)` = 6,464 = W0 − 3,192 exactly — **bytes present (904)**, and
+`write_two(4096)` = 10,567 = W0 + 904 + 7: the two pages' copies add, total
+5,000 = the whole account. Verified at copy sizes 8, 92, 100, 904, 4,096.
+This finding earned its status the honest way: its earlier flat-4,096 form
+was refuted by a reachable experiment, twice refined since.
 
 **Resize growth = 1 CU per byte grown; shrink constant-CU.** (1) 02 ladder;
 audit added non-page-multiple targets 100 (+92) and 5,000 (+4,992). (2) Any
@@ -47,15 +61,18 @@ step pattern or page rounding. (3) Yes. Exact at 7 transitions.
 the discriminator 4096→8192 was run: SU=1, not 2. (2) SU=2. (3) Now yes.
 Shrink and no-op resizes: SU=0. Delete refunds nothing (SU=0, never negative).
 
-**Syscall base = 512 per call, charged even for a no-op syscall.**
-(1) Audit added `tsys_log(_, 0)`: +530 ≈ 512 + 18 dispatch over its intra-
-binary baseline; `log8` adds exactly 8. Consistent direct measurements:
-`set_anonymous_segment_sz` 512+28, `emit_event` 512+58+N. (2) A near-zero
-cost for log0 would have shown 512 is an average of busy syscalls. (3) Yes.
-**512 is a base, not an average; payload work is charged on top** (create's
-~1,430 residual is payload, see UNVERIFIED). Scope: verified for log, emit,
-set-segment, set-writable, resize, delete; other syscalls (transfer, invoke,
-compress, decompress) untested.
+**Syscall base = 512 per call, charged even for a no-op syscall.
+CONFIRMS SPEC** — the resources spec already states a 512 base with
+additional per-syscall costs on top; the repo's "base, not average" phrasing
+was a restatement, not a finding. (1) Audit added `tsys_log(_, 0)`: +530 ≈
+512 + 18 dispatch over its intra-binary baseline; `log8` adds exactly 8.
+Consistent direct measurements: `set_anonymous_segment_sz` 512+28,
+`emit_event` 512+58+N. (2) A near-zero cost for log0 would have refuted the
+documented base. (3) Yes. Create's ~1,430 residual is per-call payload work
+(see UNVERIFIED). Scope: verified for log, emit, set-segment, set-writable,
+resize, delete; other syscalls (transfer, invoke, compress, decompress)
+untested. The one **spec correction** here: `tsys_exit` measures 0 despite
+the blanket 512 base.
 
 **`tsys_exit` costs 0.** (1) Disassembly of noop (3 ecall sites; success path
 executes syscalls 0 and 11) + executed-byte count proving at most one 512 fits
@@ -103,11 +120,14 @@ proof verification). Plausible, never isolated: no experiment varies seed
 size or proof content independently of proof length. Would need e.g. two
 proofs of identical length with different verification depth.
 
-**The 04 intercept decomposition** (6,129 = 512 + 4,096 + 602 + 919
-instructions). The 919 was a residual; nobody counted 04's executed path.
-The entry-stub 4,096 term is verified by disassembly of the *noop* binary;
-04's binaries share the same SDK entry stub but were not themselves
-disassembled. The intercept *value* is verified; its decomposition is not.
+**The 04 intercept decomposition** (6,129 = 4,096 + 512 + 512 + 1,009,
+where 1,009 = instruction bytes + load/store bytes + 32 event payload
+bytes). The 1,009 is a residual; nobody counted 04's executed path. (An
+earlier revision split it as "602 + 919" under a different bundling of the
+emit call — same total; the repo now uses one convention.) The entry-stub
+4,096 term is verified by disassembly of the *noop* binary; 04's binaries
+share the same SDK entry stub but were not themselves disassembled. The
+intercept *value* is verified; its decomposition is not.
 
 **Docs-figure reconciliation (quickstart 7,524 create / 5,980 increment).**
 See out-of-sample section below: residuals of +171 and +85 CU remain after

@@ -35,9 +35,12 @@ Build with the standard SDK makefile, deploy, execute any instruction.
 
 ## Expected
 
-Either the stack grows on demand (as the docs' programming model implies —
-nothing warns about a fixed stack), or a clear diagnostic ("stack overflow:
-grow the segment with tsys_set_anonymous_segment_sz").
+Either the stack grows on demand, or documentation of the initial size, or
+a clear diagnostic ("stack overflow: grow the segment with
+tsys_set_anonymous_segment_sz"). The VM memory-layout spec documents the
+stack segment's 16MB size limit and downward growth direction but is silent
+on the initial mapped size and the growth mechanism — a reader would
+reasonably assume a usable stack well above 4KB.
 
 ## Actual
 
@@ -61,3 +64,5 @@ before using large frames. (Measured cost: 512 CU for the syscall plus
 Document the 1-page initial stack prominently in the C program guide, and/or
 emit a distinguishable stack-overflow error code instead of a raw fault
 address.
+
+*Filed as https://github.com/Unto-Labs/thru/issues/37*

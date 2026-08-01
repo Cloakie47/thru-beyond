@@ -135,6 +135,25 @@ equal `write_at(0)` − (fixed path) + ε, i.e. the two pages' charges add.
 The offset is read from instruction data, so the executed code path is
 byte-identical across offsets.
 
+### Measured (2026-08-02, after the predictions commit `d74af38`)
+
+| Instruction | CU | SU | Pages |
+|---|---|---|---|
+| `write_at(0)` (= W0) | 9,656 | 0 | 2 |
+| `write_at(4096)` | **6,464** | 0 | 2 |
+| `write_at(4999)` | **6,464** | 0 | 2 |
+| `write_two(4096)` | 10,567 | 0 | 3 |
+
+**Outcome A, exactly.** `write_at(4096)` = W0 − 3,192 to the CU — the
+trailing page's copy charges its **904 bytes present**, not 4,096. Offset
+4999 matches offset 4096, as it must if the charge depends on the page and
+not the offset. Additivity holds: `write_two` = W0 + 904 + 7 (ε = the
+second store's instruction and data bytes); total copied = 4,096 + 904 =
+5,000 = the whole account. Final CoW law, verified at copy sizes 8, 92,
+100, 904, and 4,096: **1 CU per byte present in each page copied —
+min(page size, bytes in page)** — which *corrects* the spec's flat
+"page fault = 4,096 CU".
+
 ## Reproduce
 
 ```bash

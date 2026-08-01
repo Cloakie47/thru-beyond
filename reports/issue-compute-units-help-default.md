@@ -36,3 +36,5 @@ Requested Compute Units: 300000000
 So the clap annotation is correct and the prose ("defaults to 1000000000") is
 stale. The DevKit documentation quoting these defaults inherits the same
 inconsistency.
+
+*Filed as https://github.com/Unto-Labs/thru/issues/35*

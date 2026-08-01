@@ -29,21 +29,70 @@ CU ≈ 4,096 × (charged pages) + 512 × (charged syscalls)
 uncharged event pages. Do not read it as CU/4,096.
 
 **The instruction term is now measured, not assumed**
-([06-instructions](examples/06-instructions/README.md)): 1 CU per encoding
-byte, exactly — 4 CU per 32-bit instruction, 2 per compressed, ratio 1.000
-against disassembled ground truth at every loop size. Cost tracks **bytes,
-not instruction count** (the same four instructions cost double when
-assembled full-width). Loads *and stores* add 1 CU per byte accessed —
-stores were previously assumed free, and they are not.
+([06-instructions](examples/06-instructions/README.md)) — and it **confirms
+the spec** (`/spec/runtime/resources.md`) at ratio 1.000: 1 CU per byte of
+instruction or data processed is the spec's own headline rule, and the
+4 CU / 2 CU encoding rates, the per-width load costs, *and the per-width
+store costs* (lb/sb 1, lh/sh 2, lw/sw 4, ld/sd 8 — the spec even works the
+`sd` example: 4 + 8 = 12 CU) are all documented there. **This repo wrongly
+assumed stores were free** — that unread spec page is what opened the
+"36 CU gap" in 01-noop's reconciliation. Verification is still worth
+having: same four instructions assembled full-width cost exactly double
+(bytes, not count, as the spec says), and every rate measured 1.000 against
+disassembled ground truth. But these are CONFIRMS-SPEC results, not
+discoveries.
 
-For account data the per-byte law is verified at byte granularity (CoW
-copies, resize growth, at sizes 8/100/4096/5000/8192). For anonymous
-segments it is **UNVERIFIED and unverifiable as stated**:
+For account data the per-byte law is verified at byte granularity — and it
+**corrects the spec**, whose resources page says "each page fault costs
+exactly 4,096 compute units". Measured: a CoW copy charges **1 CU per byte
+present in the copied page** — min(4,096, bytes in page) — at 8, 92, 100,
+**904 (partially filled trailing page)**, and 4,096 bytes, each predicted
+before measurement. 4,096 is the full-page special case. For anonymous
+segments the per-byte reading is **UNVERIFIED and unverifiable as stated**:
 `set_anonymous_segment_sz` rejects non-page-multiple sizes, so "4,096 per
 page" vs "1 CU per zero-filled byte" cannot be distinguished — treat
-anonymous allocation as 4,096 per page, and the per-byte reading as
-interpretation. See [AUDIT.md](AUDIT.md) for the falsifiability review of
-every finding; anything labeled UNVERIFIED there is not established.
+anonymous allocation as 4,096 per page (which *confirms* the spec's number;
+the charge-at-mapping timing is undocumented). See [AUDIT.md](AUDIT.md) for
+the falsifiability review; anything labeled UNVERIFIED there is not
+established.
+
+## Findings ledger — what confirms, corrects, or extends the spec
+
+Strict rule applied: if the spec says it anywhere, it is CONFIRMS, not
+UNDOCUMENTED.
+
+**CONFIRMS SPEC (9):** 1 CU per instruction-encoding byte (4/2 rates);
+per-width load costs; per-width store costs; cost tracks bytes not
+instruction count (the core rule); 512 syscall base with per-call extras on
+top; anonymous page allocation = 4,096 per page (magnitude); CoW
+copy-on-first-write mechanism; per-byte charge on event/log/proof payload
+(core rule); deterministic execution (129/129 measurement cells identical
+across runs).
+
+**CORRECTS SPEC (4):** CoW cost is per byte present in the copied page, not
+"exactly 4,096 per page fault"; reads of untouched account pages incur no
+page-fault charge at all; `tsys_exit` costs 0 despite the blanket 512
+syscall base; the CLI's `--compute-units` help text contradicts itself
+(prose 1,000,000,000 vs actual default 300,000,000).
+
+**UNDOCUMENTED (14):** entry stub maps exactly one 4KB stack page and the
+stack never grows on demand; every transaction's floor therefore includes
+512 + 4,096 before user code; program image including .data/.bss is
+read-only — no writable globals; .bss is stored in the image (binary
+inflation); event pages are counted in `Pages Used` but never CU-charged;
+10-byte per-event record overhead; zero-length emit records no event;
+resize growth = 1 CU/byte grown with constant-cost shrink; resize SU =
+ceil(bytes grown/4096); delete requires data size 0 and refunds nothing;
+`set_anonymous_segment_sz` rejects non-page-multiple sizes; failed
+transactions report no consumed CU anywhere; `Pages Used` is a mixed meter;
+Zknh SHA-256 speedup is 1.30× (quantified).
+
+**UNVERIFIED (7):** the per-byte reading of anonymous allocation; the
+~1,430 CU create-syscall residual attribution; 04's intercept instruction
+term (never independently counted); the docs-figure reconciliation
+attribution; the event-header layout interpretation; deployment cost as a
+function of binary size (single sample); the `user_error` register-echo
+interpretation.
 
 Out-of-sample check against the docs' quickstart (104-byte proof): the model
 predicts create = 7,695 vs the docs' 7,524 (+2.27%) and increment-with-event

@@ -34,7 +34,11 @@ Build, deploy, execute.
 Either writable .data/.bss (the standard C execution model), or a
 compile/link-time error when a program contains writable static data, or at
 minimum prominent documentation that all mutable state must live in account
-data, the stack, or a grown anonymous segment.
+data, the stack, or a grown anonymous segment. The VM memory-layout spec
+does list PROGRAM (0x0003) under the read-only segment type, but describes
+it as "Executable RISC-V code" and says nothing about the fate of .data or
+.bss — and the shipped toolchain links writable sections without any
+warning, so the failure only appears at runtime.
 
 ## Actual
 
@@ -55,3 +59,5 @@ deployment costs, for arrays that cannot even be written.
 Fail the link (or `thru program create`'s image validation) when the ELF
 contains a non-empty writable PT_LOAD segment, with a message pointing to
 account data / stack / anonymous segments as the supported alternatives.
+
+*Filed as https://github.com/Unto-Labs/thru/issues/38*

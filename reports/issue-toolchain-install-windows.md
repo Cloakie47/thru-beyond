@@ -37,3 +37,5 @@ command inside WSL2 Ubuntu on the same machine works and prints
   `dev` subcommand more surprising.
 - If Windows toolchain support is not planned, an explicit
   "unsupported platform: use WSL2" error would save users significant time.
+
+*Filed as https://github.com/Unto-Labs/thru/issues/34*

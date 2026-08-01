@@ -40,3 +40,5 @@ to reason about statically. Right now the only way to size `req_memory_units`
 is to guess high, because actual consumption is unmeasurable from the CLI.
 `Pages Used` is printed and correlates with copy-on-write activity, but it is
 not denominated in MU and doesn't capture peak memory of heap/stack growth.
+
+*Filed as https://github.com/Unto-Labs/thru/issues/36*

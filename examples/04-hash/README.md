@@ -76,9 +76,23 @@ data, yet uses one more page than 01-noop. *Resolved by
 page, which is **counted in `Pages Used` but never charged** — event emission
 costs 570 + 1 CU/byte with no page charge at all. That is also why the 6,129
 intercept sits below the 4,096×2 + 512×2 floor a charged event page would
-require: only one page (the entry stub's stack page) is charged, `tsys_exit`
-is free, and the intercept decomposes as 512 (entry segment-map syscall)
-+ 4,096 (stack page) + 602 (emit of 32 B: 570 + 32) + 919 (instructions).
+require: only one page (the entry stub's stack page) is charged and
+`tsys_exit` is free. Under the repo's single accounting convention —
+syscalls counted at their 512 base only, everything else (instruction
+bytes, load/store data bytes, event payload bytes) in one residual term:
+
+```
+6,129 = 4,096 (stack page) + 512 (entry syscall) + 512 (emit syscall base)
+      + 1,009 (instruction bytes + load/store bytes + 32 event payload
+               bytes on the executed path — never independently counted:
+               UNVERIFIED as a decomposition)
+```
+
+*Correction note:* an earlier revision quoted "602 + 919" for the last two
+terms — that accounting bundled 58 CU of emit call-setup instructions and
+the 32 payload bytes into a "602 emit" term and excluded them from a "919
+instructions" term. Same total, two conventions; the repo now uses only the
+form above (1,009 = 919 + 58 + 32).
 
 ## Where the predictions failed, exactly
 
