@@ -109,6 +109,32 @@ Reconciled, not contradicted:
   SU = ceil(bytes grown / 4096), not floor(target/4096). Non-page-multiple
   growth also exact in CU: →100 = +92, →5000 = +4,992.
 
+## Trailing-page CoW experiment — PREDICTIONS, committed before measurement
+
+The 5,000-byte account (`taRWnS6k1yAYX9XN9efjjwFNCvY2iFMTLSeeHuR2XSM97a`) has a
+full page 0 (4,096 bytes) and a trailing page 1 holding only 904 bytes. Two
+new intra-binary instructions: `write_at` (one byte at a given offset) and
+`write_two` (one byte at offset 0 AND one at the given offset). Let W0 =
+measured `write_at(0)` (copies full page 0 = 4,096).
+
+**Outcome A — copy charges bytes *present* in the page
+(min(page size, bytes present)):**
+`write_at(4096)` = W0 − 4,096 + 904 = **W0 − 3,192**, and `write_at(4999)`
+identical. `write_two(4096)` ≈ W0 + 904 + ε (both pages copied = the whole
+5,000-byte account; ε = a few CU for the extra store's instruction and data
+bytes).
+
+**Outcome B — copy charges the full mapped page regardless of data present:**
+`write_at(4096)` = **W0 exactly** (same 4,096 charge), `write_at(4999)` the
+same, `write_two(4096)` ≈ W0 + 4,096 + ε — and then the 8-byte (+8) and
+100-byte (+92) increment results need a different explanation than
+bytes-copied.
+
+Additivity check either way: `write_two(4096)` − `write_at(4096)` should
+equal `write_at(0)` − (fixed path) + ε, i.e. the two pages' charges add.
+The offset is read from instruction data, so the executed code path is
+byte-identical across offsets.
+
 ## Reproduce
 
 ```bash

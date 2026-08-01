@@ -20,6 +20,8 @@
 #define EX02_INSTR_INCREMENT_E (2U)
 #define EX02_INSTR_RESIZE_TO   (3U)
 #define EX02_INSTR_DELETE      (4U)
+#define EX02_INSTR_WRITE_AT    (5U)
+#define EX02_INSTR_WRITE_TWO   (6U)
 
 typedef struct __attribute__((packed)) {
     uint   instruction_type;
@@ -91,6 +93,25 @@ static void handle_resize_to(ushort idx, uint new_size) {
     tsdk_return(TSDK_SUCCESS);
 }
 
+/* Write one byte at an arbitrary offset (or at 0 and the offset) — probes
+   what a CoW copy of a partially filled trailing page charges. The offset
+   comes from instruction data, so the code path is identical for every
+   offset value. */
+static void handle_write_at(ushort idx, uint offset, uint also_zero) {
+    volatile uchar *p = (volatile uchar *)tsdk_get_account_data_ptr(idx);
+    if (p == NULL) {
+        tsdk_revert(EX02_ERR_DATA_PTR);
+    }
+    if (tsys_set_account_data_writable(idx) != TSDK_SUCCESS) {
+        tsdk_revert(EX02_ERR_WRITABLE);
+    }
+    if (also_zero) {
+        p[0] = 1;
+    }
+    p[offset] = 1;
+    tsdk_return(TSDK_SUCCESS);
+}
+
 static void handle_delete(ushort idx) {
     if (tsys_account_delete(idx, NULL) != TSDK_SUCCESS) {
         tsdk_revert(EX02_ERR_DELETE);
@@ -140,6 +161,17 @@ TSDK_ENTRYPOINT_FN void start(void) {
             ex02_resize_args_t const *args =
                 (ex02_resize_args_t const *)instruction_data;
             handle_resize_to(args->account_index, args->new_size);
+            break;
+        }
+        case EX02_INSTR_WRITE_AT:
+        case EX02_INSTR_WRITE_TWO: {
+            if (instruction_data_sz != sizeof(ex02_resize_args_t)) {
+                tsdk_revert(EX02_ERR_BAD_SIZE);
+            }
+            ex02_resize_args_t const *args =
+                (ex02_resize_args_t const *)instruction_data;
+            handle_write_at(args->account_index, args->new_size,
+                            *instruction_type == EX02_INSTR_WRITE_TWO);
             break;
         }
         case EX02_INSTR_DELETE: {
