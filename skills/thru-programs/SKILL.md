@@ -101,6 +101,26 @@ project/
     └── <name>.c
 ```
 
+Complete minimal program (this exact skeleton built, deployed, and measured
+5,315 CU / Pages 2, 3× identical, as the model above predicts):
+
+```c
+#include <stdint.h>
+#include <thru-sdk/c/tn_sdk.h>          /* types, TSDK_ENTRYPOINT_FN */
+#include <thru-sdk/c/tn_sdk_syscall.h>  /* tsys_* syscalls */
+
+TSDK_ENTRYPOINT_FN void start(uchar const *instruction_data,
+                              ulong instruction_data_sz) {
+    (void)instruction_data;
+    ulong v = instruction_data_sz;
+    tsys_emit_event(&v, sizeof(v));
+    tsdk_return(TSDK_SUCCESS);   /* or tsdk_revert(code); never fall off */
+}
+```
+
+The SDK compiles with `-Werror -Wall -Wextra -Wpedantic -Wconversion` —
+cast explicitly and mark unused params.
+
 ```bash
 # toolchain lives in $HOME; if the project dir is elsewhere (e.g. /mnt/c),
 # the SDK's upward search fails — set this or the build dies:
@@ -110,15 +130,17 @@ make                                    # -> build/thruvm/bin/<name>_c.bin
 U="--url https://rpc.alphanet.thru.org" # never edit ~/.thru/cli/config.yaml
                                         # (it holds the plaintext private key)
 
-# create-vs-upgrade: PROBE FIRST. A failed `program create` on an existing
-# seed uploads a full temp buffer BEFORE noticing, then errors (0x0504),
-# orphaning the buffer accounts on-chain:
-PROG=$(thru $U program derive-address <known-or-new> ... )  # or saved addr
-if thru --quiet $U getaccountinfo "$PROG" >/dev/null 2>&1; then
+# First deploy of a new seed: just create — it prints the program address.
+thru $U program create <seed> ./build/thruvm/bin/<name>_c.bin
+# Save that address. On EVERY later deploy, probe before choosing create
+# vs upgrade: a failed `program create` on an existing seed uploads a full
+# temp buffer BEFORE noticing, then errors (manager 0x0504), orphaning the
+# buffer accounts on-chain. Never use create-failure as the probe:
+if thru --quiet $U getaccountinfo "$SAVED_PROG_ADDR" >/dev/null 2>&1; then
   thru $U program upgrade <seed> ./build/thruvm/bin/<name>_c.bin
 else
   thru $U program create  <seed> ./build/thruvm/bin/<name>_c.bin
-fi                                       # create prints the program address
+fi
 
 thru $U txn execute --fee 0 [--readwrite-accounts <addr>] <program> <hex>
 # read: Compute Units Consumed / State Units Consumed / Pages Used
