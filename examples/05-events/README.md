@@ -111,6 +111,33 @@ overshoots every reconciliation by exactly one syscall.
 Incidental measurement: the volatile byte-fill loop costs almost exactly
 15 CU per iteration (15.0007 at N = 8192).
 
+## Addendum (2026-08-02): the per-event record overhead is 10 bytes, per event
+
+Bisecting the 9→10 `Pages Used` boundary (`emit_n` at N = 4032, 4056, 4072,
+4080, 4084, 4086, 4087, 4088; three identical runs each; CU stayed on its
+line throughout, +16/byte with no step): Pages goes 9 → 10 **between N = 4086
+and N = 4087**. The event buffer page boundary sits at N + overhead > 4096,
+so the per-event record overhead is **10 bytes** (8-byte `event_type` prefix
++ 2 more, a u16-sized field — plausibly the length).
+
+Per-event, not one-time: `emit_two` (two events of N/2 each, same binary,
+same fill) steps 9 → 10 **between N = 4076 and N = 4078** — exactly where
+N + 2×10 crosses 4096 (the boundary moved earlier by one overhead's worth;
+a one-time overhead would have left it at 4086/4087). The second emit
+syscall also shows up cleanly: `emit_two(4088)` − `emit_n(4088)` = 558 ≈
+512 + call setup.
+
+Also from this session: a deliberately faulting variant (write to the
+read-only txn-data segment just before exit) was added to measure whether
+`tsys_exit` is charged, but **the CLI reports no consumed CU for failed
+transactions** — not in the error output, not in `--json`, and failed
+transactions don't appear in `thru account transactions` at all. The
+exit-cost question was closed by disassembly + the directly measured cost
+of the entry stub's syscall instead (see the
+[01-noop README](../01-noop/README.md)). After the rebuild for these new
+instructions, `return_only` re-baselined at 34,127 (+20 codegen shift from
+the binary change — intra-binary deltas unaffected).
+
 ## Reproduce
 
 ```bash

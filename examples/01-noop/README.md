@@ -33,15 +33,45 @@ address for this example is the one below.)
 ```
 
 An earlier version of this section attributed the 512 to the `tsdk_return`
-syscall. [05-events](../05-events/README.md) showed that assignment cannot be
-right: the SDK entry stub (`entrypoint.S`) itself calls
-`set_anonymous_segment_sz` to map exactly one 4KB stack page — that syscall
-and that page allocation are the 512 + 4,096, and every reconciliation only
-lands exactly if `tsys_exit` costs 0. The "1 page" every minimal program
-shows is the entry stub's mapped stack page, charged at allocation.
-[03-storage](../03-storage/README.md) established the account-page half:
-account data pages charge 4,096 on first write (copy-on-write), reads are
-free.
+syscall. Two lines of evidence (2026-08-02) settle the attribution:
+
+**1. Disassembly.** The 138-byte binary contains exactly three `ecall`
+sites:
+
+```
+ 3000044:  4881      li   a7,0        ; syscall 0 = set_anonymous_segment_sz
+ 3000046:  00000073  ecall            ; _start: maps ONE 4KB stack page
+ ...
+ 3000058:  48ad      li   a7,11       ; exit — revert path, NOT executed
+ 300005c:  00000073  ecall
+ ...
+0000000003000074 <tsys_exit>:
+ 3000074:  48ad      li   a7,11       ; exit — executed via tsdk_return
+ 3000076:  00000073  ecall
+```
+
+The success path executes *both* syscall 0 and syscall 11. Summing the
+executed instructions' encodings gives ~114 CU (+5 CU of data loads), so at
+most **one** of the two executed syscalls can carry a 512 charge: both
+charged would require negative instruction cost (4,763 − 4,096 − 1,024 < 114),
+neither charged would require 667 CU of instructions where only ~119 execute.
+
+**2. Which one: the same syscall was measured directly.** Example 05's
+program calls `tsys_set_anonymous_segment_sz` explicitly, and its cost was
+isolated as 512 + 28 CU (the grow delta reconciles to the unit). The entry
+stub issues the identical syscall by the identical mechanism, so it is
+charged — leaving 0 for `tsys_exit`.
+
+The planned third check — fault immediately before exit and compare CU —
+is blocked by a CLI limitation worth knowing: **failed transactions report
+no consumed CU anywhere** (not in the `txn execute` error output, not in
+`--json`, and they do not appear in `thru account transactions`), so the
+fault variant's CU is unobservable. Within what is measurable, decomposition
+(a) — entry-stub syscall 512 + stack page 4,096 + 155 instructions — is the
+one supported by evidence; no observation supports charging `tsys_exit`.
+[03-storage](../03-storage/README.md) and
+[02-counter](../02-counter/README.md) established the account-data half of
+the cost model (copy cost on first write; per-byte, not flat).
 
 - **Binary size:** 138 bytes (`build/thruvm/bin/tn_example_01_empty_c.bin`)
 - **Program account:** `taIjGXEaz6jCa8ORd1YWClEQgbxCdw-hDSpzGtYkZAXk-_`

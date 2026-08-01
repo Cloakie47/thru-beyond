@@ -16,16 +16,20 @@ CU ≈ 4,096 × (charged pages) + 512 × (charged syscalls)
 
 **What counts as a charged page — measured, not assumed:**
 
-| Page type | Charged 4,096? | Counted in `Pages Used`? | Evidence |
+| Page type | Charged? | Counted in `Pages Used`? | Evidence |
 |---|---|---|---|
-| Anonymous page (stack/heap) at segment **allocation** | **yes** | yes | 05: growing 1→8 pages = 7×4,096 + 512 + 28, exact |
-| Account data page, **first write** (copy-on-write) | **yes** | yes | 03: +4,104 = 4,096 + 8 addressing, `Pages Used` +1 exactly |
+| Anonymous page (stack/heap) at segment **allocation** | **4,096/page** (= 1 CU per zero-filled byte) | yes | 05: growing 1→8 pages = 7×4,096 + 512 + 28, exact |
+| Account data growth at **resize** | **1 CU per byte grown**; full pages ⇒ 4,096/page | yes | 02: 8→{4096,4104,8192,16384,65536} = +{4,088, 4,096, 8,184, 16,376, 65,528}, exact; shrink free (constant CU) |
+| Account data page, **first write** (copy-on-write) | **1 CU per byte copied** — 4,096 only for a full page | yes | 03: full-page account, +4,096/page exactly; 02: 8-byte account, increment = 5,523 with **no** 4,096 term |
 | Account data page, read | no | no | 03: `read_p1` +129 CU over baseline, Pages unchanged |
 | Already-mapped anonymous page, write | no | no change | 05: `touch_stack` +15/+15/+11 CU per extra page, Pages flat |
-| Event buffer page | **no** | **yes** | 05: emit cost = 570 + 1·N exactly, continuous through both page boundaries while `Pages Used` steps 9→10→11 |
+| Event buffer page | **no** | **yes** | 05: emit cost = 570 + 1·N exactly, continuous through both page boundaries while `Pages Used` steps 9→10→11 (boundary at N+10 per event: 10-byte record overhead, measured per-event via a two-event probe) |
 
 `Pages Used` is therefore a mixed meter — it counts charged pages *and*
-uncharged event pages. Do not read it as CU/4,096.
+uncharged event pages. Do not read it as CU/4,096. The deeper pattern
+(02 + 05): **"4,096 per page" is nowhere a primitive — every page charge
+measured so far is 1 CU per byte zero-filled, copied, or processed**, which
+equals 4,096 only when the unit of work is a full page.
 
 **What counts as a charged syscall:** every syscall measured so far costs the
 512 base (`tsys_emit_event`: 570 total incl. call setup;
@@ -86,7 +90,7 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | # | Example | CU | SU | Pages | Events | Binary | Program account |
 |---|---|---|---|---|---|---|---|
 | [01-noop](examples/01-noop/README.md) | Empty entrypoint, returns success | 4,763 | 0 | 1 | 0 | 138 B | `taIjGXEaz6jCa8ORd1YWClEQgbxCdw-hDSpzGtYkZAXk-_` |
-| 02-counter | *(not yet measured)* | | | | | | |
+| [02-counter](examples/02-counter/README.md) | Account lifecycle: create 7,791 / increment 5,523 / +event 6,065 / resize 1 CU per byte grown / delete 5,401, no refund | 5,401–71,495 | 0–16 | 1–17 | 0–1 | 952 B | `taog1g-QXdnJHjWg3o_wrzHmKEMm01_mAWU142rFNeic4s` |
 | [03-storage](examples/03-storage/README.md) | Page-fault cost experiment (4 instructions) | 4,892–13,659 | 0 | 1–3 | 0 | 838 B | `tasFvCl6TciwEVQO1tU-UJ2qDt7KXtx86qaZzWRf7l9_d1` |
 | [04-hash](examples/04-hash/README.md) | SHA-256, portable C (arm A), 0–4096 B input | 18,959–841,119 | 0 | 2 | 1 | 3,496 B | `ta-rWexuBmL558uxLZXqOb23DM0HeThZGSxG2mOm3-6oxv` |
 | [04-hash](examples/04-hash/README.md) | SHA-256, Zknh instructions (arm B) | 15,997–648,589 | 0 | 2 | 1 | 2,744 B | `taUgLhBWu3NCyYud3ioz-8XS-K8ly2BxzHk3-HRaQ0MMcb` |

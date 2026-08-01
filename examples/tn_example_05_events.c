@@ -34,6 +34,8 @@
 #define EX05_INSTR_EMIT_N      (1U)
 #define EX05_INSTR_FILL_ONLY   (2U)
 #define EX05_INSTR_TOUCH_STACK (3U)
+#define EX05_INSTR_FAULT_EXIT  (4U)
+#define EX05_INSTR_EMIT_TWO    (5U)
 
 typedef struct __attribute__((packed)) {
     uint instruction_type;
@@ -57,6 +59,17 @@ static __attribute__((noinline, noreturn)) void ex05_emit_n(uint n) {
 static __attribute__((noinline, noreturn)) void ex05_fill_only(uint n) {
     uchar buf[EX05_BUF_MAX];
     ex05_do_fill(buf, n);
+    tsdk_return(TSDK_SUCCESS);
+}
+
+/* Two events of n/2 each from the same filled buffer — probes whether the
+   per-event record overhead is charged per event. */
+static __attribute__((noinline, noreturn)) void ex05_emit_two(uint n) {
+    uchar buf[EX05_BUF_MAX];
+    ex05_do_fill(buf, n);
+    uint half = n / 2U;
+    tsys_emit_event(buf, half);
+    tsys_emit_event(buf + half, n - half);
     tsdk_return(TSDK_SUCCESS);
 }
 
@@ -112,6 +125,21 @@ TSDK_ENTRYPOINT_FN void start(void) {
                 tsdk_revert(EX05_ERR_BAD_PAGES);
             }
             ex05_touch_stack(n);
+            break;
+        case EX05_INSTR_FAULT_EXIT: {
+            /* Same path as return_only, but fault (write to the read-only
+               txn-data segment) instead of reaching tsys_exit — measures
+               whether exit's syscall base is charged. */
+            volatile uchar *p = (volatile uchar *)(ulong)instruction_data;
+            p[0] = 1;
+            tsdk_return(TSDK_SUCCESS);
+            break;
+        }
+        case EX05_INSTR_EMIT_TWO:
+            if (n > EX05_BUF_MAX) {
+                tsdk_revert(EX05_ERR_BAD_N);
+            }
+            ex05_emit_two(n);
             break;
         default:
             tsdk_revert(EX05_ERR_BAD_TYPE);
