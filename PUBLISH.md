@@ -20,10 +20,13 @@ CU = 512 × (charged syscalls)            [tsys_exit measures 0]
 
 Every transaction also pays a fixed floor before user code runs: 512 + 4,096
 (the SDK entry stub's segment-map syscall and its one stack page) — noop
-reconciles to 4,763 with 4 CU unexplained. Two consequences worth more than
-the formula: execution is exactly linear (calibrate one size, predict any
-other to ~0.01%), and `Pages Used` is not a cost meter (it counts uncharged
-event pages too).
+reconciles to 4,763 with 4 CU unexplained. Three consequences worth more
+than the formula: execution is exactly linear (calibrate one size, predict
+any other to ~0.01%); `Pages Used` is not a CU meter but **is** the
+transaction's consumed memory units (identical in 28/28 transactions —
+budget `req_memory_units` from it; event pages are CU-free but
+MU-charged); and state units bill ceil(bytes grown/4096) on account
+growth, are 1 per create, and are never refunded by any operation.
 
 **Domain of validity:** alphanet under CLI 0.3.2; syscall base verified for
 7 of the 16 syscalls (log, emit, set-segment, set-writable, resize, delete,

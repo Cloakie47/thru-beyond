@@ -163,8 +163,16 @@ ascending. Wire structs: `__attribute__((packed))`, little-endian.
 - **Failed transactions report NO consumed CU anywhere** (not in errors,
   not via `txn get`, not listed in `account transactions`). You cannot
   profile revert paths. Design measurements to succeed.
-- **`Pages Used` is not a cost meter.** It counts charged pages AND
-  uncharged event pages. Never read it as CU/4096.
+- **`Pages Used` IS the consumed memory units** (proven identical in 28/28
+  transactions via the Explorer) — the third budget, printed unlabeled.
+  It is NOT a CU meter: it counts CU-charged pages AND CU-free event pages
+  (which do consume MU). Size `req_memory_units` from it. State units:
+  ceil(bytes grown/4096) per resize, 1 per create, never refunded by any
+  operation.
+- The SDK's default `-O3` produced the LARGEST binary of six optimization
+  levels for real code (2.9× `-O1`) — deploy cost tracks size directly.
+  Whether -O3 still wins on hot-path CU is unmeasured; don't assume either
+  way.
 - Events: the first 8 payload bytes become the event's `event_type` tag;
   reassemble `event_type || data` to recover the payload. ~10 bytes of
   per-event record overhead land in the event buffer page accounting.

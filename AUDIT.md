@@ -244,6 +244,31 @@ proof kinds revert with syscall error −43; the expected proof shape is
 undocumented and the CLI constructs its own. Two attempts, then time-boxed
 out. Not a finding — a precisely-located blocker.
 
+## Example 11 (budgets) — added 2026-08-02, predictions at `96efd57`
+
+**Consumed MU ≡ `Pages Used`, in every transaction. UNDOCUMENTED.**
+(1) 28 transactions swept via the Explorer's `memoryUnits.consumed`
+(fresh probes across 01/03/04/05/06/07 + the resize ladder + historical 08
+signatures): identical in 28/28, including the pre-stated deciding case —
+event pages (CU-free per ex05) ARE MU-charged (emit8 → MU 9,
+emit4088 → 10). (2) Any single divergence, most plausibly the event pages.
+(3) Yes. Within-transaction peak-vs-end-state remains UNVERIFIED (no
+deployed instruction grows then shrinks; deploys blocked by the desync).
+
+**SU = ceil(bytes grown / 4096), sharpened at the 4097 discriminator;
+never refunded. UNDOCUMENTED (confirming and extending the earlier row).**
+(1) Ladder from 8 to {1, 8, 4095, 4096, 4097, 8192, 65536}: SU =
+{0,1,1,1,**1**,2,16} — target 4097 spans two pages yet SU=1, killing the
+target-pages reading a second, sharper time. CU stayed exactly 1/byte
+grown throughout. (2) SU=2 at 4097. (3) Yes.
+
+**The SDK's default -O3 emits the largest binary of six levels for the
+SHA-256 example (3,496 B vs 1,216 at -O1). UNDOCUMENTED, sizes only.**
+(1) Direct compiles with the SDK's exact flag set, trailing -O override.
+(2) -O3 being smallest/typical. (3) Yes for sizes; the per-transaction CU
+comparison — the half that decides the recommendation — is gated on the
+proof-root desync (deploys fail with −23) and explicitly NOT claimed.
+
 ## UNVERIFIED (flagged in README until a discriminating experiment exists)
 
 **"Every page charge is 1 CU per byte zero-filled" as applied to anonymous

@@ -26,7 +26,11 @@ CU ≈ 4,096 × (charged pages) + 512 × (charged syscalls)
 | Event buffer page | **no** | **yes** | 05: emit cost = 570 + 1·N exactly, continuous through both page boundaries while `Pages Used` steps 9→10→11 (boundary at N+10 per event: 10-byte record overhead, measured per-event via a two-event probe) |
 
 `Pages Used` is therefore a mixed meter — it counts charged pages *and*
-uncharged event pages. Do not read it as CU/4,096.
+uncharged event pages. Do not read it as CU/4,096. **What it actually is
+([11-budgets](examples/11-budgets/README.md), 28/28 transactions): the
+consumed memory units of the transaction.** `Pages Used` ≡ MU consumed —
+the third budget, printed all along under another name. Event pages are
+CU-free but MU-charged.
 
 **The instruction term is now measured, not assumed**
 ([06-instructions](examples/06-instructions/README.md)) — and it **confirms
@@ -87,7 +91,7 @@ catch-via-`invoke_err` pattern only applies to syscall-level invoke errors.
 retracted: deeper timed retries showed a ~1–5 minute indexing lag, not
 impossibility; see UNDOCUMENTED.)
 
-**UNDOCUMENTED (25):** entry stub maps exactly one 4KB stack page and the
+**UNDOCUMENTED (28):** entry stub maps exactly one 4KB stack page and the
 stack never grows on demand; every transaction's floor therefore includes
 512 + 4,096 before user code; program image including .data/.bss is
 read-only — no writable globals; .bss is stored in the image (binary
@@ -103,7 +107,7 @@ sequential hops); the SDK txn accessors read top-level data, so
 quickstart-pattern programs cannot be CPI callees; CPI events attribute to
 the emitting frame's program.
 
-**UNVERIFIED (10):** the per-byte reading of anonymous allocation; the
+**UNVERIFIED (12):** the per-byte reading of anonymous allocation; the
 ~1,430 CU create-syscall residual attribution; 04's intercept instruction
 term (never independently counted); the docs-figure reconciliation
 attribution; the event-header layout interpretation; deployment cost as a
@@ -113,7 +117,10 @@ decompression ceiling (unprobed — the CLI auto-switches to its chunked
 flow); the creating-proof staleness boundary (90 s accepted; limit
 untested); the compression formula's proof-byte term (inferred from
 same-key creating-proof sizes; six exact points, but the embedded proof's
-size is not printed by the CLI).
+size is not printed by the CLI); within-transaction MU peak-vs-end-state
+(no deployed instruction grows then shrinks; deploys blocked); the
+optimization-level CU comparison (sizes measured, per-transaction CU
+gated on the desync).
 
 Plus, from examples 07–08: compression pricing = 5,853 + 1 CU per
 account byte + 1 CU per proof byte (exact at five sizes incl. recompression;
@@ -128,8 +135,15 @@ base + ~1 CU per byte revived with SU = pages restored, and accounts above
 the ~32 KiB single-transaction ceiling are revived via the CLI's chunked
 buffer flow; live accounts are not in the compressed bintrie (only
 `creating` proofs exist for them); the Explorer MCP reports consumed memory
-units that the CLI omits; under CPI, `Pages Used` equals the deepest call
-depth reached (one stack page per depth, reused across same-depth calls).
+units that the CLI omits — and (11-budgets) **consumed MU ≡ `Pages Used`
+in 28/28 transactions**, so the CLI does print it, unlabeled; event pages
+are CU-free but MU-charged; SU bills ceil(bytes grown/4096) — the 4097
+discriminator confirms grown-bytes over target-pages — and no operation
+ever refunds SU; the SDK's default -O3 emits the largest binary of all six
+optimization levels for the SHA-256 example (2.9× -O1 — per-transaction
+CU comparison gated on the desync); under CPI, `Pages Used` equals the
+deepest call depth reached (one stack page per depth, reused across
+same-depth calls).
 
 Out-of-sample check against the docs' quickstart (104-byte proof): the model
 predicts create = 7,695 vs the docs' 7,524 (+2.27%) and increment-with-event
@@ -238,6 +252,10 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | [06-instructions](examples/06-instructions/README.md) | Instruction term measured directly (spin loops, log/grow probes) | 4,924–164,928 | 0 | 1–2 | 0 | 420 B | `ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu` |
 | [07-cpi](examples/07-cpi/README.md) | CPI: 1,511/hop, +4,096/depth, 16 call depths | 4,925–89,038 | 0 | 1–16 | 0–1 | 848 B + 734 B | `ta9TmfhHffn5hJ3P83hC8NtwERjworfg7pSGxU_GrEPEmy` |
 | [08-compression](examples/08-compression/README.md) | Round trip: compress = 5,853 + 1 CU/acct B + 1 CU/proof B (no SU refund); decompress ≈ base + 1 CU/B revived; beware the ~1–5 min proof-indexing lag | 5,565–72,037 | 0–16 | 1–17 | 0 | 996 B | `tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY` |
+| [11-budgets](examples/11-budgets/README.md) | MU ≡ Pages Used (28/28); SU = ceil(bytes grown/4096), never refunded; -O3 default = largest binary (2.9× -O1) | re-measurements | 0–16 | = MU | — | — | (cross-example measurements) |
+
+The Pages column above doubles as the consumed-MU column (proven identical
+in 11-budgets).
 
 Deploying an 838 B program cost **320,292 CU** across five transactions
 (measured breakdown in the 03 README).
