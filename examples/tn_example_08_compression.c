@@ -90,6 +90,17 @@ TSDK_ENTRYPOINT_FN void start(uchar const *d, ulong sz) {
             tsdk_return(TSDK_SUCCESS);
             break;
         }
+        case 6U: { /* create_ephemeral: <seed 32> — no proof, per spec */
+            if (rem != 32UL) {
+                tsdk_revert(0x800BUL);
+            }
+            ulong r = tsys_account_create_ephemeral(idx, p);
+            if (r != TSDK_SUCCESS) {
+                tsdk_revert(0x8300UL + r);
+            }
+            tsdk_return(TSDK_SUCCESS);
+            break;
+        }
         case 5U: { /* resize: <new_size u32> */
             if (rem != 4UL) {
                 tsdk_revert(0x8007UL);
