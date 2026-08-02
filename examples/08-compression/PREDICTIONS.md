@@ -44,3 +44,28 @@ single-transaction revival ceiling; compress scaling (or not) with S.
 
 Time-box note (per task): if the proof flow dead-ends, the failure point
 gets reported precisely instead of worked around.
+
+---
+
+## Housekeeping-session predictions (2026-08-02, committed before measuring)
+
+1. **Decompress refit**: recording the proof size per decompression and
+   subtracting data bytes AND proof bytes (the ex02 law) will leave an
+   **exactly constant base**, mirroring the compress correction (5,853).
+   The published "base + 1 CU/byte revived" absorbed proof-size variation:
+   remainders after data alone were 6,111 / 6,079 / 6,111 at
+   100 / 1,000 / 5,000 B — the 32-CU wobble is predicted to be proof-size
+   differences. Refutation: a non-constant remainder after both
+   subtractions.
+2. **Large revival**: total 64 KiB revival through the chunked flow will be
+   dominated by per-byte charges on the chunk uploads (~30 KiB ≈ 30k+ CU
+   per chunk txn), predicting a total in the **150k–250k CU** range —
+   several times the single 71,621 CU compression. Single-transaction
+   decompression stops fitting somewhere in **30,000–32,400 B** of account
+   data; the CLI may switch to chunked below the true wire limit (its
+   compress chunk default is 30,720 B — the switch point is measured, not
+   assumed).
+3. **Invoke discriminator** (already stated in the 07 README): exact
+   disassembly count of the marginal `cpi_n` path — residual ≈ 230 kills
+   the register-save surcharge (invoke = plain 512 base), ≈ 490 confirms
+   it. No third outcome fits 1,511.
