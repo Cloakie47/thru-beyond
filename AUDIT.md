@@ -174,15 +174,16 @@ quickstart-pattern programs (ex02 included) reject or misparse CPI data.
 caller's 12-byte payload; register-arg rewrite fixed it. (2) The txn
 accessors returning per-frame data. (3) Yes.
 
-**Invoke costs ≈ 512 + ~256 beyond the callee's instructions? UNVERIFIED —
-and in tension with the spec.** The spec *derives* the 512 base from
-exactly invoke's work (32 regs × 8 B × 2); attributing a further ~256 to
-the register save would count it twice. The ~487 CU hop residual splits
-into callee-path (~230, estimated, not exactly counted) + ~256 — OR into
-callee-path (~487) + 0. Discriminating experiment (described in the 07
-README, not yet run): count the callee op-0 path and caller call-site
-exactly from disassembly; residual ≈ 230 kills the surcharge, ≈ 490
-confirms it. Until then, do not quote "invoke costs more than 512".
+**Invoke costs exactly its 512 base — no register-save surcharge. CONFIRMS
+SPEC (resolved 2026-08-02 by the discriminating experiment).** (1) Exact
+disassembly count of the full marginal `cpi_n` path: caller loop 36 +
+helper 80 + tsys_invoke wrapper 168 + callee stub 109 + callee dispatch/
+return/exit 86 + 1,024 syscall bases = 1,503 vs measured 1,511 — residual
+8 CU. (2) A residual near 256 would have confirmed the surcharge; 8 kills
+it. (3) Yes — both outcomes were stated in advance with thresholds (~230
+vs ~490 for the non-syscall residual; counted 479, i.e. the "kill" branch).
+The earlier surcharge reading was an artifact of estimating the callee path
+alone (~230) while the caller-side helper + wrapper actually cost 284/hop.
 
 ## Example 08 (compression) — added 2026-08-02, predictions at `a21831a`
 

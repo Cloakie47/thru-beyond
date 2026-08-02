@@ -61,7 +61,7 @@ established.
 Strict rule applied: if the spec says it anywhere, it is CONFIRMS, not
 UNDOCUMENTED.
 
-**CONFIRMS SPEC (12):** 1 CU per instruction-encoding byte (4/2 rates);
+**CONFIRMS SPEC (13):** 1 CU per instruction-encoding byte (4/2 rates);
 per-width load costs; per-width store costs; cost tracks bytes not
 instruction count (the core rule); 512 syscall base with per-call extras on
 top; anonymous page allocation = 4,096 per page (magnitude); CoW
@@ -72,7 +72,9 @@ indices transaction-global under CPI ("same transaction context"); the
 call-depth limit — 16 call depths (1..16), exactly as the SDK header
 counts them (deepest measured depth 16 executes; depth 17 fails with −24;
 an earlier "corrects, max 15" claim here was a recursion miscount, since
-retracted).
+retracted); `tsys_invoke` costs exactly its 512 base — the exact-count
+discriminator left an 8 CU residual, killing the register-save-surcharge
+reading and confirming the spec's own derivation of the base.
 
 **CORRECTS SPEC (5):** CoW cost is per byte present in the copied page, not
 "exactly 4,096 per page fault"; reads of untouched account pages incur no
@@ -101,14 +103,12 @@ sequential hops); the SDK txn accessors read top-level data, so
 quickstart-pattern programs cannot be CPI callees; CPI events attribute to
 the emitting frame's program.
 
-**UNVERIFIED (11):** the per-byte reading of anonymous allocation; the
+**UNVERIFIED (10):** the per-byte reading of anonymous allocation; the
 ~1,430 CU create-syscall residual attribution; 04's intercept instruction
 term (never independently counted); the docs-figure reconciliation
 attribution; the event-header layout interpretation; deployment cost as a
 function of binary size (single sample); the `user_error` register-echo
-interpretation; the invoke syscall's ~256 CU register-save surcharge (in
-tension with the spec's own derivation of the 512 base — see the 07
-README's open question); the ~32,100–32,300-byte single-transaction
+interpretation; the ~32,100–32,300-byte single-transaction
 decompression ceiling (unprobed — the CLI auto-switches to its chunked
 flow); the creating-proof staleness boundary (90 s accepted; limit
 untested); the compression formula's proof-byte term (inferred from
@@ -190,6 +190,37 @@ instructions.
 2. **Denser codegen is literally cheaper.** CU bills per instruction byte:
    a compressed 16-bit encoding costs 2 CU where a full-width 32-bit
    instruction costs 4. Compiler flags and code shape directly change the bill.
+
+## Syscall coverage map
+
+The spec's syscall reference (`/spec/vm/syscalls/overview/`) is referenced
+by the docs but its enumeration is not retrievable (the index 403s; the
+LLM-facing doc sets name only `invoke` and `exit`). The authoritative
+numbered list below is the SDK's `tn_sdk_syscall.h` (0x00–0x0F) — with the
+numbers independently confirmed on-chain where exercised (0x00 in the entry
+stub's disassembly, 0x0A/0x0B/0x0C/0x0D in measured programs).
+
+| # | Syscall | Exercised | Measured cost (alphanet, CLI 0.3.2, 2026-08) | What it does |
+|---|---|---|---|---|
+| 0x00 | `set_anonymous_segment_sz` | yes (01, 05, 06) | 512 + 4,096/newly mapped page; rejects non-page multiples; runs in EVERY txn via the entry stub | size the stack/heap segment |
+| 0x01 | `increment_anonymous_segment_sz` | no | — | grow an anonymous segment by a delta |
+| 0x02 | `set_account_data_writable` | yes (02, 03, 08) | 512 | enable writes to an account this txn |
+| 0x03 | `account_transfer` | no | — | move balance between accounts |
+| 0x04 | `account_create` | yes (02, 03, 08) | 512 + 1 CU/proof byte + ~1,430 payload work (attribution UNVERIFIED) | create a PDA with a state proof |
+| 0x05 | `account_create_ephemeral` | no | — | create an ephemeral account |
+| 0x06 | `account_delete` | yes (02) | 512 (op total 5,401); needs data size 0; refunds nothing | delete an empty account |
+| 0x07 | `account_resize` | yes (02, 08) | 512 + 1 CU/byte grown; shrink free; SU = ceil(grown/4096) | resize account data |
+| 0x08 | `account_compress` | attempted (08) | **blocked**: −43 with every obtainable proof (shape undocumented); the system-program path measures 5,853 + 1 CU/acct B + 1 CU/proof B | archive an account to a compressed leaf |
+| 0x09 | `account_decompress` | attempted (08) | not reached program-side; CLI path measured | restore a compressed account |
+| 0x0A | `invoke` | yes (07) | **exactly the 512 base** — exact-count residual 8 CU, no register-save surcharge | cross-program invocation |
+| 0x0B | `exit` | yes (all) | **0** (corrects the blanket 512) | terminate (return/revert) |
+| 0x0C | `log` | yes (06) | 512 + 1 CU/byte | log data |
+| 0x0D | `emit_event` | yes (04, 05) | 512 + 1 CU/byte + 10 B record overhead/event | emit an event |
+| 0x0E | `account_set_flags` | no | — | set account flags |
+| 0x0F | `account_create_eoa` | no | — | create an externally-owned account |
+
+Coverage: **9 of 16 measured, 2 attempted-and-blocked (compress/decompress
+program-side), 5 untouched** (0x01, 0x03, 0x05, 0x0E, 0x0F).
 
 ## Cost table
 

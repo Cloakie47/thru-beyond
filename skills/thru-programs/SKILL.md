@@ -87,8 +87,9 @@ Practical rules:
 
 UNVERIFIED (do not treat as established): anonymous allocation being
 per-byte rather than per-page (untestable — the API is page-granular);
-invoke costing 512 + ~256 for its register save (consistent-with, not
-isolated); the ~1,430 CU inside account_create beyond base+proof.
+the ~1,430 CU inside account_create beyond base+proof. (Resolved: invoke
+costs exactly its 512 base — an exact disassembly count left an 8 CU
+residual, killing the register-save-surcharge reading.)
 
 ## 3. Build / deploy / measure loop
 

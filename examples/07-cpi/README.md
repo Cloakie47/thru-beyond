@@ -78,22 +78,33 @@ page sources). There is no disagreement between `cpi_1` (Pages 2) and
   (callee path + call-site instructions + data). See the open question
   below before reading anything more into the ~487.
 
-## Open question: the 256/512 double-count tension (UNVERIFIED)
+## Resolved (2026-08-02): no register-save surcharge — invoke costs exactly
+## its 512 base
 
-The spec *derives* the 512 syscall base from exactly the work invoke
-performs: 32 registers × 8 bytes × 2 (save + restore) = 512. This repo's
-hop residual analysis then attributed a further ~256 of the ~487 CU to "the
-256-byte register save charged as data writes" — which, if the spec's
-derivation is taken literally, would count the save twice. Both readings
-fit the measured 1,511; neither is established. A cheap discriminating
-experiment: count the callee's op-0 path and the caller's call-site
-instructions *exactly* from the disassembly (they are ~60 instructions
-total) and subtract — if the exact residual after 1,024 is ≈ 230, invoke
-costs only its base and the ~256 attribution was an artifact of the
-estimated callee-path figure; if ≈ 490, invoke genuinely carries a
-register-save surcharge. Not yet done; until then the ~487's internal split
-is UNVERIFIED and the "invoke costs more than 512" claim should not be
-quoted.
+The open question — does invoke charge ~256 CU for its register save on top
+of the 512 base the spec derives *from* that save (32 regs × 8 B × 2)? —
+was closed by the exact-count experiment this section used to describe.
+Counting every executed instruction and load/store byte on the marginal
+`cpi_n` path from the disassemblies:
+
+| Component | Instruction CU | Load/store CU | Total |
+|---|---|---|---|
+| Caller loop body (spill/reload, jal) | 20 | 16 | 36 |
+| `ex07_invoke_callee` helper | 38 | 42 | 80 |
+| `tsys_invoke` wrapper (auth=NULL path) | 64 | 104 | 168 |
+| Callee: entry stub | 88 | 21 | 109 |
+| Callee: `start` op-0 + return + exit | 66 | 20 | 86 |
+| Syscall bases: invoke 512 + callee segment-set 512 (exit = 0) | | | 1,024 |
+| **Counted** | | | **1,503** |
+| **Measured marginal hop** | | | **1,511** |
+
+Residual: **8 CU** — hand-count noise (the repo's counts carry ±4–8
+everywhere), nowhere near the ~256 a surcharge would leave. **The surcharge
+reading is dead; `tsys_invoke` costs its plain 512 base plus visible
+instruction and data bytes, and the spec's derivation of the base stands
+(CONFIRMS).** The earlier "callee ~230 + save ~256" split was an artifact
+of estimating only the callee path and ignoring that the caller-side helper
+and syscall wrapper themselves cost 284 CU per hop.
 
 ## Depth limit — CONFIRMS the SDK header (correcting this README's own
 earlier claim)
