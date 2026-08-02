@@ -138,6 +138,17 @@ of the entry stub's syscall instead (see the
 instructions, `return_only` re-baselined at 34,127 (+20 codegen shift from
 the binary change — intra-binary deltas unaffected).
 
+## Addendum 2 (2026-08-02, budgets session): the MU peak discriminator
+
+A sixth instruction (`grow_shrink`, type 6) grows the already-8-page
+segment... precisely: after the standard grow to 8 pages, it sets the
+segment back to 1 page and returns. Measured (3× identical, binary now
+672 B after this upgrade; `return_only` re-baselined unchanged at 34,127):
+**34,665 CU, Pages 8 — and the Explorer reports MU 8.** Memory units bill
+the transaction's PEAK, not its end state; the in-transaction shrink costs
+nothing and refunds nothing (+538 = one `set_anonymous_segment_sz` base +
+setup). Confirms the spec's "charged at peak usage".
+
 ## Reproduce
 
 ```bash

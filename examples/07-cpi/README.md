@@ -99,7 +99,9 @@ Counting every executed instruction and load/store byte on the marginal
 | **Measured marginal hop** | | | **1,511** |
 
 Residual: **8 CU** — hand-count noise (the repo's counts carry ±4–8
-everywhere), nowhere near the ~256 a surcharge would leave. **The surcharge
+everywhere), nowhere near the ~256 a surcharge would leave. The full
+instruction-by-instruction listing behind these subtotals is in
+[ACCOUNTING.md](ACCOUNTING.md). **The surcharge
 reading is dead; `tsys_invoke` costs its plain 512 base plus visible
 instruction and data bytes, and the spec's derivation of the base stands
 (CONFIRMS).** The earlier "callee ~230 + save ~256" split was an artifact

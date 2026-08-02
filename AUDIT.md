@@ -262,6 +262,14 @@ never refunded. UNDOCUMENTED (confirming and extending the earlier row).**
 target-pages reading a second, sharper time. CU stayed exactly 1/byte
 grown throughout. (2) SU=2 at 4097. (3) Yes.
 
+**MU charges peak, not end-state. CONFIRMS SPEC (resolved same day).**
+(1) `grow_shrink` added to the 05 binary (upgrades work during the
+desync): segment grown to 8 pages then set back to 1 before returning —
+MU = 8 and Pages = 8, 3× identical, Explorer-confirmed; CU = baseline +
+538 (the extra syscall; no refund). (2) MU = 1 would have meant end-state
+billing and broken the MU ≡ Pages identity's interpretation. (3) Yes —
+the discriminator was pre-stated with both outcomes.
+
 **The SDK's default -O3 emits the largest binary of six levels for the
 SHA-256 example (3,496 B vs 1,216 at -O1). UNDOCUMENTED, sizes only.**
 (1) Direct compiles with the SDK's exact flag set, trailing -O override.

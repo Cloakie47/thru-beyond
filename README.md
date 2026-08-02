@@ -65,7 +65,9 @@ established.
 Strict rule applied: if the spec says it anywhere, it is CONFIRMS, not
 UNDOCUMENTED.
 
-**CONFIRMS SPEC (13):** 1 CU per instruction-encoding byte (4/2 rates);
+**CONFIRMS SPEC (14):** 1 CU per instruction-encoding byte (4/2 rates);
+memory units charge peak usage, not end-state (the grow-8-shrink-1
+discriminator reported MU 8);
 per-width load costs; per-width store costs; cost tracks bytes not
 instruction count (the core rule); 512 syscall base with per-call extras on
 top; anonymous page allocation = 4,096 per page (magnitude); CoW
@@ -107,7 +109,7 @@ sequential hops); the SDK txn accessors read top-level data, so
 quickstart-pattern programs cannot be CPI callees; CPI events attribute to
 the emitting frame's program.
 
-**UNVERIFIED (12):** the per-byte reading of anonymous allocation; the
+**UNVERIFIED (11):** the per-byte reading of anonymous allocation; the
 ~1,430 CU create-syscall residual attribution; 04's intercept instruction
 term (never independently counted); the docs-figure reconciliation
 attribution; the event-header layout interpretation; deployment cost as a
@@ -117,8 +119,7 @@ decompression ceiling (unprobed — the CLI auto-switches to its chunked
 flow); the creating-proof staleness boundary (90 s accepted; limit
 untested); the compression formula's proof-byte term (inferred from
 same-key creating-proof sizes; six exact points, but the embedded proof's
-size is not printed by the CLI); within-transaction MU peak-vs-end-state
-(no deployed instruction grows then shrinks; deploys blocked); the
+size is not printed by the CLI); the
 optimization-level CU comparison (sizes measured, per-transaction CU
 gated on the desync).
 
@@ -207,12 +208,13 @@ instructions.
 
 ## Syscall coverage map
 
-The spec's syscall reference (`/spec/vm/syscalls/overview/`) is referenced
-by the docs but its enumeration is not retrievable (the index 403s; the
-LLM-facing doc sets name only `invoke` and `exit`). The authoritative
-numbered list below is the SDK's `tn_sdk_syscall.h` (0x00–0x0F) — with the
-numbers independently confirmed on-chain where exercised (0x00 in the entry
-stub's disassembly, 0x0A/0x0B/0x0C/0x0D in measured programs).
+The spec's syscall reference (`/spec/vm/syscalls/overview/`) enumerates
+**15 syscalls (0x00–0x0E)** — retrieved 2026-08-02 after an earlier
+transient 403 — and matches the SDK's `tn_sdk_syscall.h` numbering
+exactly, except that **0x0F `account_create_eoa` exists in the SDK header
+but is absent from the spec's table** (UNDOCUMENTED). Numbers were also
+independently confirmed on-chain where exercised (0x00 in the entry stub's
+disassembly, 0x0A/0x0B/0x0C/0x0D in measured programs).
 
 | # | Syscall | Exercised | Measured cost (alphanet, CLI 0.3.2, 2026-08) | What it does |
 |---|---|---|---|---|

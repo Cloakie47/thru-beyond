@@ -25,8 +25,11 @@ than the formula: execution is exactly linear (calibrate one size, predict
 any other to ~0.01%); `Pages Used` is not a CU meter but **is** the
 transaction's consumed memory units (identical in 28/28 transactions —
 budget `req_memory_units` from it; event pages are CU-free but
-MU-charged); and state units bill ceil(bytes grown/4096) on account
-growth, are 1 per create, and are never refunded by any operation.
+MU-charged; and MU charges **peak**, not end-state — the
+grow-8-pages-then-shrink-to-1 discriminator reported MU 8, confirming
+the spec's peak-usage rule; shrinking refunds nothing);
+and state units bill ceil(bytes grown/4096) on account growth, are 1 per
+create, and are never refunded by any operation.
 
 **Domain of validity:** alphanet under CLI 0.3.2; syscall base verified for
 7 of the 16 syscalls (log, emit, set-segment, set-writable, resize, delete,
@@ -43,25 +46,28 @@ is extrapolation.
 
 ## Where the findings stand against the spec (strict labels)
 
-- **CONFIRMS SPEC: 12** — the per-byte core rule, instruction encoding
+- **CONFIRMS SPEC: 14** — the per-byte core rule, instruction encoding
   rates, load costs, store costs, 512 syscall base, 4,096 per anonymous
   page, CoW mechanism, per-byte payload charges, determinism, CPI register
-  data delivery, transaction-global account indices under CPI, and the
-  16-call-depth limit (after retracting our own miscounted "corrects").
+  data delivery, transaction-global account indices under CPI, the
+  16-call-depth limit (after retracting our own miscounted "corrects"),
+  `tsys_invoke` costing exactly its base (the surcharge reading killed by
+  exact count), and MU charging peak usage (the grow-shrink discriminator).
 - **CORRECTS SPEC: 5** — CoW charges bytes present, not a flat 4,096; reads
   never page-fault-charge; `tsys_exit` is free; the CLI's `--compute-units`
   help contradicts itself; a callee's revert aborts the whole transaction
   despite the C reference's catch-via-`invoke_err` implication.
-- **UNDOCUMENTED: 25** — including the 1-page never-growing stack, the
-  read-only program image (no writable globals), event pages counted but
-  never charged, resize/delete semantics, failed transactions reporting no
-  CU, CPI pricing and the SDK accessor trap, Pages = deepest call depth,
-  the full compression economics, and the ~1–5 minute compressed-leaf
-  indexing lag.
+- **UNDOCUMENTED: 28** — including the 1-page never-growing stack, the
+  read-only program image (no writable globals), event pages CU-free but
+  MU-charged, MU ≡ `Pages Used`, resize/delete semantics and the SU
+  formula, failed transactions reporting no CU, CPI pricing and the SDK
+  accessor trap, Pages = deepest call depth, the full compression
+  economics, the ~1–5 minute compressed-leaf indexing lag, the -O3-largest
+  binary observation, and syscall 0x0F existing only in the SDK header.
 - **UNVERIFIED: 11** — flagged in AUDIT.md; the largest are the anonymous
   per-byte unification (unreachable refutation: the API is page-granular),
-  the create-syscall residual (~1,430 CU), and the invoke register-save
-  surcharge (in tension with the spec's own derivation of the 512 base).
+  the create-syscall residual (~1,430 CU), and the optimization-level
+  runtime-CU comparison (gated on the desync).
 
 Two retractions are part of the record, both caught by the repo's own
 audit discipline: "max call depth 15" (a recursion miscount; the header's

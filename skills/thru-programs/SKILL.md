@@ -166,9 +166,11 @@ ascending. Wire structs: `__attribute__((packed))`, little-endian.
 - **`Pages Used` IS the consumed memory units** (proven identical in 28/28
   transactions via the Explorer) — the third budget, printed unlabeled.
   It is NOT a CU meter: it counts CU-charged pages AND CU-free event pages
-  (which do consume MU). Size `req_memory_units` from it. State units:
-  ceil(bytes grown/4096) per resize, 1 per create, never refunded by any
-  operation.
+  (which do consume MU). Size `req_memory_units` from it — for PEAK usage:
+  grow-8-then-shrink-to-1 measured MU 8, so shrinking never lowers the
+  bill within a transaction. State
+  units: ceil(bytes grown/4096) per resize, 1 per create, never refunded
+  by any operation.
 - The SDK's default `-O3` produced the LARGEST binary of six optimization
   levels for real code (2.9× `-O1`) — deploy cost tracks size directly.
   Whether -O3 still wins on hot-path CU is unmeasured; don't assume either

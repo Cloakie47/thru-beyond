@@ -24,24 +24,36 @@ consume the memory-unit budget. Also confirmed against every other page
 source: 8-page stack grow → MU 8; CoW writes → 2/3; CPI depth 14 → MU 16;
 resize 8→65536 → MU 17; noop → MU 1.
 
-Sub-question left open (UNVERIFIED): whether a grow-then-shrink *within
-one transaction* charges peak or end-state MU — no deployed instruction
-does both, and deploys are blocked. Across transactions MU is per-txn
-(a shrink transaction consumes its own small MU; nothing is refunded).
+Sub-question CLOSED (same day): a `grow_shrink` instruction was added to
+the 05 binary (grow the segment to 8 pages, set it back to 1 before
+returning — the upgrade path works even during the desync). Result, 3×
+identical, Explorer-confirmed: **MU = 8, Pages Used = 8 — MU charges
+PEAK, not end-state**, and `Pages Used` tracks the same peak. CU = 34,665
+= the return_only baseline + 538 (one extra segment syscall + setup): the
+shrink refunds nothing and costs nothing. This CONFIRMS the spec's
+"charged at peak usage, not cumulative" — and clarifies that the spec's
+"shrinking releases them" refers to headroom for re-growth, not to the
+billed figure.
 
 ## Part B — state units: SU = ceil(bytes grown / 4096), sharpened
 
-Resize ladder from size 8 (account d, ex02 program):
+Resize ladder on account d (ex02 program). Protocol: each growth target was
+measured from a fresh reset to 8 bytes; the reset transactions themselves
+are the shrink data. Every row states its actual starting size so the
+ladder is reproducible as written (the full 13-transaction raw sequence,
+including the interleaved resets, fits ceil(bytes grown/4096) at every
+step):
 
-| Target | Bytes grown | SU | CU above 5,995 baseline |
-|---|---|---|---|
-| 1 (shrink) | — | 0 | 0 |
-| 8 (from 1) | 7 | 1 | 7 |
-| 4095 | 4,087 | 1 | 4,087 |
-| 4096 | 4,088 | 1 | 4,088 |
-| **4097** | 4,089 | **1** | 4,089 |
-| 8192 | 8,184 | 2 | 8,184 |
-| 65536 | 65,528 | 16 | 65,528 |
+| From | Target | Bytes grown | SU | CU above 5,995 baseline |
+|---|---|---|---|---|
+| 8 | 1 (shrink) | 0 | 0 | 0 |
+| 1 | 8 | 7 | 1 | 7 |
+| 8 | 4095 | 4,087 | 1 | 4,087 |
+| 8 | 4096 | 4,088 | 1 | 4,088 |
+| 8 | **4097** | 4,089 | **1** | 4,089 |
+| 8 | 8192 | 8,184 | 2 | 8,184 |
+| 8 | 65536 | 65,528 | 16 | 65,528 |
+| any | 8 (reset/shrink) | 0 | 0 | 0 |
 
 The 4097 target is the sharp discriminator: the *target* spans two pages
 but SU = 1 — **SU bills ceil(bytes grown / 4096), not target pages.**
@@ -64,13 +76,16 @@ flags otherwise:
 | -Os | 1,344 B | −62% |
 | -Oz | 1,344 B | −62% |
 
-**The SDK's default -O3 produces the LARGEST binary of all six — 2.9× the
-size of -O1** (aggressive unrolling of the SHA rounds). Binary size sets
-deploy cost (~1 CU/byte through the pipeline) directly. Whether -O3's
-unrolled hot path still executes fewer bytes per block than -O1's rolled
-loop — the per-transaction question — **requires the measured CU, which is
-blocked**: deploys fail under the proof-root desync. No recommendation is
-issued on sizes alone; the skill says so explicitly rather than guessing.
+**Two different targets, two different costs — say it explicitly:**
+binary size drives **deployment** cost (~1 CU/byte through the
+upload/finalize pipeline, paid once), while **runtime** CU depends on
+*executed* instruction bytes on the hot path, paid every transaction.
+These can rank the flags oppositely: **-O3 is plausibly the worst on the
+first (largest binary, 2.9× -O1) and the best on the second** (its
+unrolled SHA rounds may execute fewer total bytes per block than a rolled
+loop's body-plus-branch iterations). The deployment half is measured
+above; **the runtime half is pending** — deploys fail under the
+proof-root desync — and no recommendation is issued until it exists.
 
 ## Reproduce
 

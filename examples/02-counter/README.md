@@ -109,6 +109,12 @@ Reconciled, not contradicted:
   SU = ceil(bytes grown / 4096), not floor(target/4096). Non-page-multiple
   growth also exact in CU: →100 = +92, →5000 = +4,992.
 
+*Binary-version note (2026-08-02):* the `write_at`/`write_two` upgrade
+changed this program's codegen; the current binary's shrink/no-op resize
+baseline measures **5,995** (vs 5,967 in the tables above, which are from
+the original binary). Both are correct for their versions; the 11-budgets
+ladder uses the current 5,995.
+
 ## Trailing-page CoW experiment — PREDICTIONS, committed before measurement
 
 The 5,000-byte account (`taRWnS6k1yAYX9XN9efjjwFNCvY2iFMTLSeeHuR2XSM97a`) has a

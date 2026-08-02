@@ -36,6 +36,7 @@
 #define EX05_INSTR_TOUCH_STACK (3U)
 #define EX05_INSTR_FAULT_EXIT  (4U)
 #define EX05_INSTR_EMIT_TWO    (5U)
+#define EX05_INSTR_GROW_SHRINK (6U)
 
 typedef struct __attribute__((packed)) {
     uint instruction_type;
@@ -140,6 +141,18 @@ TSDK_ENTRYPOINT_FN void start(void) {
                 tsdk_revert(EX05_ERR_BAD_N);
             }
             ex05_emit_two(n);
+            break;
+        case EX05_INSTR_GROW_SHRINK:
+            /* MU peak-vs-end-state discriminator: the segment is already
+               at 8 pages (grown above for every instruction); shrink it
+               back to 1 page before returning. Peak-charged MU reports 8,
+               end-state-charged reports 1. Frames here are small, so sp
+               stays inside the surviving top page. */
+            if (tsys_set_anonymous_segment_sz(
+                    (void *)(EX05_STACK_TOP - 4096UL)) != TSDK_SUCCESS) {
+                tsdk_revert(EX05_ERR_GROW);
+            }
+            tsdk_return(TSDK_SUCCESS);
             break;
         default:
             tsdk_revert(EX05_ERR_BAD_TYPE);
