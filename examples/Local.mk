@@ -23,6 +23,10 @@ $(call make-bin,tn_example_05_events_c,tn_example_05_events,,-ltn_sdk)
 
 $(call make-bin,tn_example_06_instructions_c,tn_example_06_instructions,,-ltn_sdk)
 
+# Example 09 — account and transaction-size limits
+
+$(call make-bin,tn_example_09_limits_c,tn_example_09_limits,,-ltn_sdk)
+
 # Example 08 — account compression round trip
 
 $(call make-bin,tn_example_08_compression_c,tn_example_08_compression,,-ltn_sdk)
