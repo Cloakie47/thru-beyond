@@ -1,65 +1,73 @@
-# 08-compression — half a round trip: the other half is broken on alphanet
+# 08-compression — the full round trip, and the lag that masqueraded as a black hole
 
 Program: `tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY` (996 B, seed
 `example_08_compression`). Alphanet, thru CLI 0.3.2+54058649, node
 0.0.0-local+599daf60, 2026-08-02, `--fee 0`. Predictions committed at
 `a21831a` before measurement.
 
-## THE BLOCKER (reported precisely, per the time-box rule)
+## CORRECTION (2026-08-02, discrimination session): the "black hole" was an
+## indexing lag
 
-**Decompression is currently impossible on alphanet.** Compression works and
-removes the account from live state — and then no tool can produce the proof
-needed to bring it back:
+An earlier revision of this README reported decompression as **impossible**
+("compressed accounts are one-way black holes"). That claim was wrong, and
+the way it was wrong is instructive: every retry in the original session
+stayed within ~60 seconds of compression. A timed re-run on a fresh account
+(PDA `tarvoZu7fh587rXrOTtW5bM_zCUY1UdULUJa50B0jAi0it`, compress sig
+`tsub2BBaYbgVOUNG1yBMsnA3bTEg9GRzkNGDycXV7Ea3Y5lk4qD0-_NH_x_2BKTAGwka4za_aKyOd93fnSFlu9ChvV`,
+slot 604530) shows:
 
-```
-$ thru --url https://rpc.alphanet.thru.org account compress taJo3C0J33p3P-wQj9ZQ3wCWehUAI8c4fY3e251dPnVl9R
-Success: Account compression completed successfully        # sig tsF7O6M5HE2k…, slot 553745
+- **T+0 and T+~1 min:** `make-state-proof existing`, `updating`, and
+  `prepare-decompression` ALL fail with
+  `RPC error: "bintrie: key not found"` — an error that reads as fatal.
+- **T+~5 min:** all three succeed. The compressed leaf appears; proofs and
+  account data are served.
+- Every previously "lost" account then decompressed successfully.
 
-$ thru … getaccountinfo taJo3C0J33p3P-…
-Error: Account not found for address: …                    # gone from live state, as designed
+**The query service indexes compressed leaves with a ~1–5 minute lag, and
+during that window every decompression surface returns a fatal-looking
+error.** Neither the lag nor the transient nature of the error is
+documented anywhere.
 
-$ thru … txn make-state-proof existing taJo3C0J33p3P-…     # also: updating
-Error: … RPC error: code: 'Unknown error', message: "bintrie: key not found"
+Independent evidence (Explorer MCP, `scan.thru.org/api/mcp`, queried inside
+the lag window): `get_account` → NOT_FOUND, while `get_transaction` fully
+indexes the compress transaction — revealing that compression is executed
+by the **system program** (`taAAAA…EB`, instruction type 0x05, the ~200-byte
+state proof embedded in its 203-byte instruction data), signed only by the
+fee payer, on a program-owned account. The owner program is not involved.
+(Bonus: the Explorer reports **consumed memory units** — 1 MU for this
+compress — which the CLI never shows.)
 
-$ thru … account prepare-decompression taJo3C0J33p3P-…
-Error: Failed to prepare account decompression: … "bintrie: key not found"
+Still blocked, program-side: `tsys_account_compress` from our own program
+reverts with syscall error −43 for both obtainable proof kinds, and the
+syscall's expected proof shape is documented nowhere we could find (the
+spec has no page for it). Time-boxed out; reported as a docs gap.
 
-$ thru … account decompress taJo3C0J33p3P-…
-Error: … "bintrie: key not found"
-```
-
-Retried 60+ seconds later: identical. The query service cannot find the
-compressed leaf that the chain just accepted, so `prepare-decompression`,
-`decompress`, and every non-creating proof kind fail. **A compressed account
-is, today, a one-way black hole.** Instructions 1–3 of this example
-(decompress / modify / recompress) are therefore unmeasured — blocked, not
-skipped. Three test accounts were knowingly sacrificed to establish this.
-
-Also blocked, program-side: `tsys_account_compress` from our own program
-reverts with syscall error −43 for both proof kinds we could fetch
-(`creating`, and `existing` which fails at the RPC before a proof exists).
-The proof shape the syscall expects is undocumented; the CLI's
-`account compress` builds its transaction internally (requesting 100,316 CU)
-and works — notably **signed only by the fee payer, on a program-owned
-account**: compression is a system-level operation that does not involve the
-owner program.
-
-## What WAS measured: compression, at four sizes
+## What WAS measured: compression, at five sizes
 
 Via `thru account compress` (CLI-built transaction), figures from
-`txn get` on each signature:
+`txn get` on each signature. Proof column = the creating-proof size for the
+same key (same trie path ⇒ same proof size; the CLI does not print the
+proof it embeds — this inference is noted in AUDIT.md):
 
-| Account size | Compress CU | SU | Pages | Implied slope |
+| Account size | Compress CU | SU | Proof | CU − S − proof |
 |---|---|---|---|---|
-| 8 B | 6,061 | **0** | 1 | — |
-| 1,000 B | 7,117 | **0** | 1 | 1.064 CU/B (vs 8) |
-| 5,000 B | 11,053 | **0** | 1 | 0.984 CU/B (vs 1,000) |
-| 65,536 B | 71,621 | **0** | 1 | 1.0005 CU/B (vs 8) |
+| 8 B | 6,061 | **0** | 200 | **5,853** |
+| 100 B (repro, out-of-sample) | 6,153 | **0** | 200 | **5,853** |
+| 1,000 B | 7,117 | **0** | 264 | **5,853** |
+| 5,000 B | 11,053 | **0** | 200 | **5,853** |
+| 65,536 B | 71,621 | **0** | 232 | **5,853** |
 
-**Compress ≈ 6,053 + 1 CU per byte of account data** — the account is hashed
-at 1 CU/byte, consistent with the repo's per-byte law (Zknh-accelerated
-hashing notwithstanding; the charge is per byte processed, not per hash
-instruction).
+```
+compress = 5,853 + 1 CU × account bytes + 1 CU × proof bytes
+```
+
+Exact at all five sizes, slope exactly 1.000 on both terms.
+*Correction (2026-08-02):* this section originally published
+"≈ 6,053 + 1 CU/byte, slope 1.0005" — that fit absorbed the proof bytes
+(which example 02 had already established cost 1 CU each) into a fake slope
+and an intercept anchored on the two accounts that happened to carry
+200-byte proofs. Apply the repo's own established laws before fitting new
+ones.
 
 ## The economic question, answered plainly
 
@@ -71,26 +79,43 @@ storage; it is not an economic mechanism for the account holder. (Whether
 rent/SU pricing elsewhere makes it indirectly economic is outside what the
 CLI exposes.)
 
-## The 32 KiB decompression ceiling — analytic only (BLOCKED empirically)
+## The rest of the round trip — measured after the lag cleared
 
-Decompression must carry the full account data as instruction data:
-6 (args) + 62 (meta) + 4 + S (data) + 4 + proof (observed creating proofs:
-168–264 B; compressed-leaf proof sizes unobservable) + transaction envelope
-(~300 B). Against the 32,768-byte transaction limit, the largest revivable
-account in one transaction computes to **S ≈ 32,100–32,300 bytes**; 65,536
-is impossible in a single transaction. **Unverified empirically** — the
-decompression path is broken (above), so the failing size could not be
-probed. If decompression cost follows the model, revival would also run
-≈ 2–3 CU per byte revived (instruction-data byte + write byte + hash byte)
-— likewise unverifiable today.
+| Operation | CU | SU | Pages |
+|---|---|---|---|
+| decompress 100 B | 6,211 | 1 | 2 |
+| decompress 1,000 B | 7,079 | 1 | 2 |
+| decompress 5,000 B | 11,111 | 2 | 3 |
+| decompress 65,536 B (final txn of chunked flow) | 72,037 | 16 | 17 |
+| modify (1-byte write, 100 B account, ×3 identical) | 5,565 | 0 | 2 |
+| recompress (post-modify, 100 B) | 6,153 | 0 | 1 |
+
+- **Decompression ≈ base + ~1 CU per byte revived** (slopes 0.96–1.01
+  between the single-transaction points), far below the predicted 2–3 CU/B.
+  SU = pages of data restored (1/1/2/16 = ceil(S/4096)), mirroring resize
+  growth. Exact decomposition into data + proof terms awaits per-transaction
+  proof sizes, which the CLI does not print for this flow.
+- **Recompress = compress**: 6,153 = 5,853 + 100 + 200, the same formula to
+  the CU as the first compression.
+- **The 32 KiB single-transaction ceiling is real but routed around**: for
+  65,536 B the CLI switched to a chunked flow (buffer create, 3 chunk
+  uploads, decompress-from-buffer — "all 3 chunks verified in buffer").
+  Large accounts are revivable, at multi-transaction cost. The exact
+  single-transaction size boundary (~32,100–32,300 B by payload arithmetic)
+  remains unprobed: UNVERIFIED.
+- One-shot operations (compress, decompress, recompress per state) cannot
+  be run 3×; `modify` was (3 identical). Cross-checks instead: five exact
+  points on the compress formula, four decompressions with consistent
+  slopes.
 
 ## Proof sizes and staleness
 
 - Creating (absence) proofs observed across all accounts in this repo: 168,
   200 (×4), 232, 264 bytes — variable with tree position, consistent with
-  the spec's path_bitset design. `existing`/`updating` proofs could not be
-  obtained for ANY account, live or compressed ("bintrie: key not found")
-  — the proof service currently serves absence proofs only.
+  the spec's path_bitset design. `existing`/`updating` proofs are served
+  only for keys in the compressed bintrie, and only after the ~1–5 min
+  indexing lag; for LIVE accounts they fail with "bintrie: key not found"
+  (live accounts are not in that trie at all).
 - **A 90-second-old creating proof was accepted** (create succeeded,
   identical 6,593 CU) — refuting the prediction that proofs are tightly
   slot-bound. The tolerance boundary (time or tree-conflict) is untested.
@@ -101,6 +126,9 @@ probed. If decompression cost follows the model, revival would also run
 U="--url https://rpc.alphanet.thru.org"
 P="tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY"
 # create+resize via the program (types 4/5), then:
-thru $U account compress <pda>          # works; account becomes unrecoverable
-thru $U account prepare-decompression <pda>   # currently: "bintrie: key not found"
+thru $U account compress <pda>            # works; account leaves live state
+# WAIT ~5 minutes — during the indexing lag every decompression surface
+# fails with a fatal-looking "bintrie: key not found"
+thru $U account prepare-decompression <pda>
+thru $U account decompress <pda>          # works after the lag
 ```

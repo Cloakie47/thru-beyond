@@ -63,7 +63,11 @@ byte; proofs differ per account), 8-byte counter increment 5,523, +event
 6,065, delete 5,401 (requires data size 0 first; refunds nothing), deploy of
 an 838 B program 320,292 (single sample). CPI: 1,511 CU per same-depth hop,
 +4,096 per depth level (frame pages are reused across sequential calls at
-the same depth); max call depth 15, then invoke returns −24.
+the same depth); 16 call depths total (root = depth 1), exceeding returns
+−24. Compression: 5,853 + 1 CU/account byte + 1 CU/proof byte, no SU refund
+(validator-side, not economic); after compressing, ALL decompression
+surfaces fail with a fatal-looking "bintrie: key not found" for ~1–5 min of
+indexing lag — wait it out, do not conclude the account is lost.
 
 Practical rules:
 - **Keep hot fields within the first 2,047 bytes of account data** — larger

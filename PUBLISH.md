@@ -29,26 +29,41 @@ event pages too).
 7 of the 16 syscalls (log, emit, set-segment, set-writable, resize, delete,
 invoke — plus exit = 0); account sizes tested 0–65,536 bytes; instruction
 term verified on ALU/load/store loop bodies; cross-program invocation
-priced to depth 15 (example 07: 1,511 CU per same-depth hop, +4,096 per
-depth level, frame pages reused for breadth; callee reverts abort the whole
-transaction). No heap-segment measurements. Outside that envelope this
-model is extrapolation.
+priced across all 16 call depths (example 07: 1,511 CU per same-depth hop,
++4,096 per depth level, frame pages reused for breadth; callee reverts
+abort the whole transaction). Account compression round-tripped (example
+08): compress = 5,853 + 1 CU/account byte + 1 CU/proof byte with no SU
+refund; decompress ≈ base + ~1 CU/byte revived; the proof service indexes
+compressed leaves with a ~1–5 minute lag that masquerades as "bintrie: key
+not found". No heap-segment measurements. Outside that envelope this model
+is extrapolation.
 
 ## Where the findings stand against the spec (strict labels)
 
-- **CONFIRMS SPEC: 9** — the per-byte core rule, instruction encoding
+- **CONFIRMS SPEC: 12** — the per-byte core rule, instruction encoding
   rates, load costs, store costs, 512 syscall base, 4,096 per anonymous
-  page, CoW mechanism, per-byte payload charges, determinism.
-- **CORRECTS SPEC: 4** — CoW charges bytes present, not a flat 4,096; reads
+  page, CoW mechanism, per-byte payload charges, determinism, CPI register
+  data delivery, transaction-global account indices under CPI, and the
+  16-call-depth limit (after retracting our own miscounted "corrects").
+- **CORRECTS SPEC: 5** — CoW charges bytes present, not a flat 4,096; reads
   never page-fault-charge; `tsys_exit` is free; the CLI's `--compute-units`
-  help contradicts itself.
-- **UNDOCUMENTED: 14** — including the 1-page never-growing stack, the
+  help contradicts itself; a callee's revert aborts the whole transaction
+  despite the C reference's catch-via-`invoke_err` implication.
+- **UNDOCUMENTED: 25** — including the 1-page never-growing stack, the
   read-only program image (no writable globals), event pages counted but
-  never charged, the 10-byte per-event overhead, resize/delete semantics,
-  and failed transactions reporting no CU.
-- **UNVERIFIED: 7** — flagged in AUDIT.md; the largest are the anonymous
-  per-byte unification (unreachable refutation: the API is page-granular)
-  and the create-syscall residual attribution (~1,430 CU).
+  never charged, resize/delete semantics, failed transactions reporting no
+  CU, CPI pricing and the SDK accessor trap, Pages = deepest call depth,
+  the full compression economics, and the ~1–5 minute compressed-leaf
+  indexing lag.
+- **UNVERIFIED: 11** — flagged in AUDIT.md; the largest are the anonymous
+  per-byte unification (unreachable refutation: the API is page-granular),
+  the create-syscall residual (~1,430 CU), and the invoke register-save
+  surcharge (in tension with the spec's own derivation of the 512 base).
+
+Two retractions are part of the record, both caught by the repo's own
+audit discipline: "max call depth 15" (a recursion miscount; the header's
+16 is confirmed) and "decompression impossible" (a ~1–5 minute indexing
+lag misread as permanence because retries stopped at 60 s).
 
 A cautionary note this repo earned twice: three "findings" (store costs,
 bytes-not-count, 512 base) were briefly presented as discoveries and are in

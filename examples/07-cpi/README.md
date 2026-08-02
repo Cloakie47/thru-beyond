@@ -9,10 +9,10 @@ measurement ([PREDICTIONS.md](PREDICTIONS.md)).
 
 ## Verdict on the central question: H-C — per *depth level*, not per hop
 
-The stack segment is shared (spec: one stack segment per VM), but each
-invocation **frame** at a new depth maps one fresh 4,096-CU page via the
-callee's entry stub — and that page is **reused** by sequential invokes at
-the same depth.
+The stack segment is shared (spec: one stack segment per VM), but the first
+visit to each call depth maps one fresh 4,096-CU page via the callee's
+entry stub — and that page is **reused** by sequential invokes at the same
+depth.
 
 | Measurement | CU | Pages |
 |---|---|---|
@@ -30,34 +30,92 @@ the same depth.
 | `cpi_deep` N=14 | 89,038 | 16 |
 | `cpi_deep` N≥15 | transaction fails | — |
 
-- **First hop: 5,567 CU** (10,492 − 4,925) — H-B-sized, because the callee's
-  frame page is mapped on first entry.
-- **Each additional same-depth hop: exactly 1,511 CU** — the `cpi_n` slope is
-  1,511.00 at every pair, with `Pages Used` flat at 2: the frame page is not
-  freed on return and costs nothing to reuse. (First-hop premium over the
-  marginal hop: 4,056 ≈ 4,096 − small baseline-path differences.)
-- **Each depth level: exactly 5,607 CU = 1,511 + 4,096**, with `Pages Used`
-  = 2 + N. Depth costs precisely one page more than breadth per hop — the
-  cleanest confirmation the model could ask for, since 4,096 and the
-  hop cost separate perfectly.
+**Frame-counting convention (corrected 2026-08-02):** the top-level program
+runs at call depth 1. `cpi_deep_n(N)` hands the callee a countdown of N, and
+the `depth = 0` invocation still executes as a frame — so it spawns **N + 1
+callee frames**, reaching call depth **N + 2**. (An earlier revision of this
+README counted N frames; the CU figures were unaffected but the depth-limit
+conclusion was wrong — see below.)
+
+**One table, one convention — `Pages Used` = deepest call depth reached:**
+
+| Measurement | Deepest depth | Pages Used |
+|---|---|---|
+| `no_cpi` | 1 | 1 |
+| `cpi_1` | 2 | 2 |
+| `cpi_n` N=1 / 2 / 4 / 8 | 2 (depth-2 frame reused) | 2 / 2 / 2 / 2 |
+| `cpi_deep` N=1 | 3 | 3 |
+| `cpi_deep` N=2 | 4 | 4 |
+| `cpi_deep` N=4 | 6 | 6 |
+| `cpi_deep` N=8 | 10 | 10 |
+| `cpi_deep` N=13 | 15 | 15 |
+| `cpi_deep` N=14 | 16 | 16 |
+
+Both series agree exactly under this convention: one stack page per call
+depth, mapped at the first visit to that depth, reused by every later frame
+at the same depth (in this no-account, no-event program there are no other
+page sources). There is no disagreement between `cpi_1` (Pages 2) and
+`cpi_deep_1` (Pages 3): deep N=1 is caller + **two** callee frames, not one.
+
+- **First hop: 5,567 CU** (10,492 − 4,925) — the depth-2 frame page is
+  mapped on first entry.
+- **Each additional same-depth hop: exactly 1,511 CU** — the `cpi_n` slope
+  is 1,511.00 at every pair, Pages flat: the frame page is not freed on
+  return and costs nothing to reuse.
+- **Each additional depth level: exactly 5,607 CU = 1,511 + 4,096**, Pages
+  +1 per level.
+- **The 40 CU difference between 5,567 and 5,607** (both "a fresh page plus
+  a hop"): the two numbers ride different code paths. Disassembly of both
+  binaries shows the deep marginal frame executes the callee's recursion
+  path — parsing a second u32 field (4 × `lbu` + shifts/ors, ~28 CU by
+  itself), building the next 10-byte args struct with stores, and checking
+  two return codes — while the `cpi_1` path is the caller's invoke helper
+  plus the callee's shorter op-0 terminal. Mechanism confirmed by
+  disassembly; the exact 40 was not closed by instruction-count summation
+  (the repo's hand-counts carry ±4-CU residuals at best).
 - Marginal-hop decomposition: 1,511 = 512 (invoke base) + 512 (callee entry
   stub's segment syscall, a no-op re-set once the page exists) + ~487
-  (callee path + call-site instructions + data). The ~487 is *consistent
-  with* the invoke syscall's documented 256-byte register save being charged
-  as data writes (callee path estimated ~230 from its disassembly, leaving
-  ~256) — so **invoke does appear to cost more than the bare 512 base**, by
-  about the size of the register save, but the split is an estimate:
-  UNVERIFIED as a decomposition.
+  (callee path + call-site instructions + data). See the open question
+  below before reading anything more into the ~487.
 
-## Depth limit
+## Open question: the 256/512 double-count tension (UNVERIFIED)
 
-`cpi_deep` N=14 (root + 14 nested = **call depth 15**) is the deepest that
-executes. N=15 fails: the deepest callee's `tsys_invoke` returns **−24
-(TN_VM_ERR_SYSCALL_CALL_DEPTH_TOO_DEEP)** — observed as our wrapper code
-`0x7BE8` = 0x7C00 + (ulong)(−24). The SDK header's comment says "16 call
-depths (1..16)"; observed reality is that depth 16 is unreachable —
-**maximum achievable call depth is 15**. (CU for the failing transactions is
-unobservable: failed transactions report no CU — the known CLI gap.)
+The spec *derives* the 512 syscall base from exactly the work invoke
+performs: 32 registers × 8 bytes × 2 (save + restore) = 512. This repo's
+hop residual analysis then attributed a further ~256 of the ~487 CU to "the
+256-byte register save charged as data writes" — which, if the spec's
+derivation is taken literally, would count the save twice. Both readings
+fit the measured 1,511; neither is established. A cheap discriminating
+experiment: count the callee's op-0 path and the caller's call-site
+instructions *exactly* from the disassembly (they are ~60 instructions
+total) and subtract — if the exact residual after 1,024 is ≈ 230, invoke
+costs only its base and the ~256 attribution was an artifact of the
+estimated callee-path figure; if ≈ 490, invoke genuinely carries a
+register-save surcharge. Not yet done; until then the ~487's internal split
+is UNVERIFIED and the "invoke costs more than 512" claim should not be
+quoted.
+
+## Depth limit — CONFIRMS the SDK header (correcting this README's own
+earlier claim)
+
+The header constant, quoted exactly
+(`include/thru-sdk/c/tn_sdk_txn.h:66`):
+
+```c
+#define TSDK_SHADOW_STACK_FRAME_MAX (17U) /* 16 call depths (1..16) + 1 for frame -1 */
+```
+
+It counts *call depths*, root = depth 1. Measured: `cpi_deep` N=14 spawns
+15 callee frames on top of the root — **deepest call depth 16 — and
+executes.** N=15 (which would require depth 17) fails with the deepest
+callee's `tsys_invoke` returning **−24
+(TN_VM_ERR_SYSCALL_CALL_DEPTH_TOO_DEEP)**, observed as our wrapper code
+`0x7BE8` = 0x7C00 + (ulong)(−24). The header counts exactly what was
+measured and matches: **CONFIRMS**, 16 call depths (1..16). An earlier
+revision of this README claimed "maximum depth 15, corrects the header" —
+that came from miscounting the recursion (forgetting the depth-0 frame),
+not from the chain. (CU at the failing boundary is unobservable: failed
+transactions report no CU — the known CLI gap.)
 
 ## Revert propagation — a caller CANNOT catch a callee's revert
 

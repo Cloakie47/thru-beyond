@@ -1,5 +1,15 @@
 # AUDIT — falsifiability review of every published finding
 
+*Mapping note (2026-08-02 consistency pass):* the README ledger counts 53
+labelled items (12 CONFIRMS / 5 CORRECTS / 25 UNDOCUMENTED / 11
+UNVERIFIED); this file contains 34 finding rows. The mapping is complete
+but not one-to-one — several rows cover multiple ledger items measured by
+one experiment (e.g. the syscall-base row covers the base, the per-byte
+payload charges, and log/emit behavior), and small observational items
+(zero-length emits, .bss stored in the image) live inside their parent
+experiment's row. Every ledger item traces to a row; two rows record
+retractions of this repo's own earlier claims.
+
 Date: 2026-08-02, thru CLI 0.3.2+54058649, alphanet. Trigger: example 02
 falsified a rule example 03 had "confirmed," because 03's 8,192-byte account
 could only ever copy full pages — the refuting result was unreachable by
@@ -118,10 +128,30 @@ exclusive. (3) Yes; H-C won.
 (1) `cpi_n` slope 1,511 with Pages flat vs first-hop 5,567. (2) Slope ≈
 5,600 with Pages growing would have meant freed-on-return. (3) Yes.
 
-**Maximum call depth is 15; depth 16 unreachable, invoke returns −24.
-CORRECTS the SDK header** ("16 call depths (1..16)"). (1) `cpi_deep`
-N=14 succeeds (depth 15), N=15/16/17 all fail with our 0x7C00 + (−24)
-wrapper. (2) N=15 succeeding. (3) Yes.
+**Call-depth limit: 16 call depths (1..16). CONFIRMS the SDK header** —
+after correcting this audit's own earlier row, which claimed "max 15,
+CORRECTS" based on a recursion miscount (`cpi_deep(N)` spawns N+1 callee
+frames; the depth-0 countdown still executes as a frame). (1) `cpi_deep`
+N=14 → deepest call depth 16, succeeds; N=15 (would need depth 17) fails
+with our 0x7C00 + (−24) wrapper. `Pages Used` = deepest depth (N=14 → 16)
+independently confirms the frame count. (2) N=14 failing, or Pages ≠
+depth. (3) Yes. Lesson logged: the refutation of the wrong claim was
+reachable all along — in the Pages column of the same table.
+
+**`Pages Used` under CPI = deepest call depth reached. UNDOCUMENTED.**
+(1) The unified table across no_cpi / cpi_1 / cpi_n / cpi_deep: 1 / 2 /
+2-flat / N+2, all consistent with one stack page per depth, reused at the
+same depth. (2) Any row breaking the identity — `cpi_n` Pages growing, or
+deep Pages ≠ N+2. (3) Yes.
+
+**The 40 CU difference between the first hop (5,567) and the per-depth
+slope (5,607): explained by mechanism, not closed to the CU.** (1)
+Disassembly of both binaries: the deep marginal frame runs the callee's
+recursion path (extra u32 parse ≈ 28 CU, args-struct stores, two
+return-code checks) vs the cpi_1 path (caller helper + shorter op-0
+terminal). (2) Identical code paths would have left 40 CU genuinely
+unexplained. (3) Partially — the mechanism is established, the exact sum
+was not performed (hand-counts carry ±4 CU). Flagged in the README.
 
 **A callee's `tsdk_revert` aborts the whole transaction; the caller cannot
 catch it. CORRECTS the C reference's implication** that `invoke_err` lets
@@ -144,36 +174,64 @@ quickstart-pattern programs (ex02 included) reject or misparse CPI data.
 caller's 12-byte payload; register-arg rewrite fixed it. (2) The txn
 accessors returning per-frame data. (3) Yes.
 
-**Invoke costs ≈ 512 + ~256 beyond the callee's instructions — consistent
-with the documented 256-byte register save being charged as writes.
-UNVERIFIED**: the ~487 CU hop residual splits into callee-path (~230,
-estimated from disassembly, not exactly counted) + ~256; the terms were not
-isolated.
+**Invoke costs ≈ 512 + ~256 beyond the callee's instructions? UNVERIFIED —
+and in tension with the spec.** The spec *derives* the 512 base from
+exactly invoke's work (32 regs × 8 B × 2); attributing a further ~256 to
+the register save would count it twice. The ~487 CU hop residual splits
+into callee-path (~230, estimated, not exactly counted) + ~256 — OR into
+callee-path (~487) + 0. Discriminating experiment (described in the 07
+README, not yet run): count the callee op-0 path and caller call-site
+exactly from disassembly; residual ≈ 230 kills the surcharge, ≈ 490
+confirms it. Until then, do not quote "invoke costs more than 512".
 
 ## Example 08 (compression) — added 2026-08-02, predictions at `a21831a`
 
-**Compression costs ≈ 6,053 + 1 CU per byte of account data; SU = 0 at
-every size (no refund). UNDOCUMENTED.** (1) CLI `account compress` on 8 /
-1,000 / 5,000 / 65,536-byte accounts, figures via `txn get`; slope 1.0005
-across the full range. (2) Flat cost (no hash term) or negative SU (a real
-refund) — the refund outcome was explicitly reachable and would have made
-compression economically real for payers. (3) Yes. **Compression is a
-validator-storage mechanism, not a payer refund.**
+**Compression = 5,853 + 1 CU per account byte + 1 CU per proof byte; SU = 0
+at every size (no refund). UNDOCUMENTED.** (1) CLI `account compress` on
+8 / 1,000 / 5,000 / 65,536-byte accounts plus a 100-byte out-of-sample
+repro; subtracting the two already-established per-byte terms leaves
+exactly 5,853 at all five points. (2) Any nonzero residual variance, or
+negative SU (a real refund — explicitly reachable, would have made
+compression economic for payers). (3) Yes. **Compression is a
+validator-storage mechanism, not a payer refund.** Caveats: the proof-byte
+term uses the same-key creating-proof size (identical trie path ⇒ identical
+size; the CLI does not print the proof it embeds) — flagged UNVERIFIED as
+an inference, though five exact points leave little room. *Correction
+note:* the first published form ("≈ 6,053 + 1 CU/B, slope 1.0005")
+absorbed proof bytes into the fit — the repo failed to apply its own ex02
+law before fitting. Corrected everywhere.
 
 **Compression is a system-level operation: fee-payer-signed, on a
 program-owned account, without the owner program. UNDOCUMENTED.** (1) The
 CLI compress transaction succeeded with only the `default` key signing.
 (2) A rejection requiring owner-program involvement. (3) Yes.
 
-**Decompression is impossible on alphanet as deployed. CORRECTS the spec's
-operational claim** that compressed accounts "can be uncompressed": after a
-successful compression, `make-state-proof existing|updating`,
-`prepare-decompression`, and `account decompress` all fail with RPC
-"bintrie: key not found", immediately and after 60+ s. (2) Any of them
-succeeding. (3) Yes — the refutation was one working RPC call away; it
-never came. Consequence: the decompress/modify/recompress costs, the CU per
-byte revived, and the empirical 32 KiB revival ceiling are all UNMEASURED
-(blocked, reported precisely in the README).
+**RETRACTED, then corrected (discrimination session): "decompression
+impossible" was wrong — the defect is a ~1–5 minute indexing lag.
+UNDOCUMENTED.** The original row claimed CORRECTS based on retries that
+never exceeded ~60 s; timed retries on a fresh account bracketed the truth:
+T+1 min all surfaces fail with "bintrie: key not found", T+5 min all
+succeed, and every previously "lost" account then decompressed. (1) Timed
+probe at T+0/T+1/T+5 (T+15 moot once T+5 succeeded), plus Explorer MCP
+cross-check (get_account NOT_FOUND during the lag while get_transaction
+fully indexes the compress — executed by the system program `taAAAA…EB`).
+(2) The refuting result for the original claim was a retry past the lag —
+reachable all along, and this audit's own standard should have caught that
+the retry window was never varied. (3) Yes, eventually. Meta-lesson logged
+as a gotcha: retry windows must exceed plausible indexing lag before
+declaring impossibility.
+
+**The completed round trip (decompress ≈ base + ~1 CU/byte revived, SU =
+pages restored; 65,536 B revived via the CLI's chunked buffer flow; modify
+5,565 ×3; recompress = the compress formula exactly). UNDOCUMENTED.**
+(1) Four decompressions (6,211 / 7,079 / 11,111 / 72,037-final-txn at
+100 / 1,000 / 5,000 / 65,536 B), three identical modifies, one recompress
+(6,153 = 5,853 + 100 + 200 — a sixth exact point for the compression
+formula). (2) Non-linear revival cost, or recompress diverging from the
+compress formula. (3) Yes. One-shot ops can't repeat 3×; cross-checked via
+multiple sizes and the formula identity instead. The single-transaction
+revival ceiling (~32,100–32,300 B) remains UNVERIFIED (unprobed — the CLI
+auto-switches to the chunked flow).
 
 **A 90-second-old creating proof is accepted. Refutes this repo's own
 committed prediction** (rejection). (1) Fetch proof, sleep 90 s, create —
