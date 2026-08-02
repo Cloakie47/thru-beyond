@@ -76,16 +76,29 @@ flags otherwise:
 | -Os | 1,344 B | −62% |
 | -Oz | 1,344 B | −62% |
 
-**Two different targets, two different costs — say it explicitly:**
-binary size drives **deployment** cost (~1 CU/byte through the
-upload/finalize pipeline, paid once), while **runtime** CU depends on
-*executed* instruction bytes on the hot path, paid every transaction.
-These can rank the flags oppositely: **-O3 is plausibly the worst on the
-first (largest binary, 2.9× -O1) and the best on the second** (its
-unrolled SHA rounds may execute fewer total bytes per block than a rolled
-loop's body-plus-branch iterations). The deployment half is measured
-above; **the runtime half is pending** — deploys fail under the
-proof-root desync — and no recommendation is issued until it exists.
+**MEASURED (2026-08-02, via borrow-upgrade of 04A's own slot, restored
+afterwards with the -O3 build reproducing the recorded 224,511 exactly):**
+
+| Flag | Binary | Upgrade CU | Runtime CU @1,024 B | Runtime vs -O3 |
+|---|---|---|---|---|
+| -O0 | 2,376 B | 546,100 | 959,579 | **+327%** |
+| **-O1** | **1,216 B** | **345,340** | **224,775** | **+0.12%** |
+| -O2 | 1,280 B | 355,264 | 244,317 | +8.8% |
+| -O3 (default) | 3,496 B | 734,292 | 224,511 | — |
+| -Os | 1,344 B | 366,340 | 249,653 | +11.2% |
+| -Oz | 1,344 B | 367,620 | 249,653 | +11.2% |
+
+**The two-target verdict, outright:** deployment cost is minimized by
+**-O1** (345,340 CU — -O3's default costs 2.13×); runtime is minimized by
+**-O3** (224,511) — but **by only 264 CU (0.12%) over -O1**, which is
+2.9× smaller. They are not the same flag, yet the choice is one-sided:
+**-O1 is the recommendation** — near-identical runtime at a third of the
+size and half the deploy cost. -Os/-Oz are dominated by -O1 on BOTH axes
+on this target (bigger and 11% slower — the "optimize-for-size" flags
+lose to plain -O1). -O0 is catastrophic: 4.27× runtime, forever. The
+SDK's -O3 default buys 0.12% runtime for ~389,000 extra deploy CU per
+upgrade of this program. (Upgrade cost scales ≈170–195 CU per binary byte
+across the six points — pipeline overhead, not the 1 CU/byte raw rate.)
 
 ## Reproduce
 

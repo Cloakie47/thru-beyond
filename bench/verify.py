@@ -89,6 +89,32 @@ rm = {r["n"]: r["cu"] for r in data["10-blockcontext"] if r["instr"] == "read_ma
 for a, b in [(1, 10), (10, 100), (100, 511)]:
     check(f"10 read_many {a}-{b}", (rm[b] - rm[a]) / (b - a) == 18)
 
+print("== 09: touch flat; read slope 44; write slope 590; write pages N+1 ==")
+if "09-limits" in data:
+    t9 = [r for r in data["09-limits"] if r["instr"] == "touch_none" and "cu" in r]
+    check("09 touch_none flat 4947", all(r["cu"] == 4947 for r in t9))
+    rd = {r["n"]: r["cu"] for r in data["09-limits"] if r["instr"] == "read_all"}
+    for a, b in [(1, 2), (64, 256), (512, 1000)]:
+        check(f"09 read {a}-{b}", (rd[b] - rd[a]) / (b - a) == 44)
+    wr = {r["n"]: r for r in data["09-limits"] if r["instr"] == "write_all"}
+    for a, b in [(1, 2), (64, 256), (512, 1000)]:
+        check(f"09 write {a}-{b}", (wr[b]["cu"] - wr[a]["cu"]) / (b - a) == 590)
+    for n, r in wr.items():
+        if "pages" in r:
+            check(f"09 write pages n={n}", r["pages"] == n + 1)
+
+print("== 11: O-level runtime — -O3 best by <0.15%, -O1 second; sizes ==")
+if "11-budgets" in data:
+    ol = {r["olevel"]: r for r in data["11-budgets"] if "olevel" in r}
+    if "runtime_cu_1024B" in ol.get("-O3", {}):
+        check("O3 reproduces 224511", ol["-O3"]["runtime_cu_1024B"] == 224511)
+        check("O1 within 0.15% of O3",
+              abs(ol["-O1"]["runtime_cu_1024B"] - 224511) / 224511 < 0.0015)
+        check("O0 worst runtime", ol["-O0"]["runtime_cu_1024B"] ==
+              max(r["runtime_cu_1024B"] for r in ol.values()))
+        check("O1 cheapest upgrade", ol["-O1"]["upgrade_cu"] ==
+              min(r["upgrade_cu"] for r in ol.values()))
+
 print("== MU == Pages wherever both recorded ==")
 for ex, rows in data.items():
     for r in rows:

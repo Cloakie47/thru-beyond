@@ -30,7 +30,14 @@ uncharged event pages. Do not read it as CU/4,096. **What it actually is
 ([11-budgets](examples/11-budgets/README.md), 28/28 transactions): the
 consumed memory units of the transaction.** `Pages Used` ≡ MU consumed —
 the third budget, printed all along under another name. Event pages are
-CU-free but MU-charged.
+CU-free but MU-charged. **And both meters count only pages WRITTEN or
+ALLOCATED, never read-only mapped pages**: 511 distinct block-history
+page reads (ex10) and 1,000-account data reads (ex09) both report
+Pages/MU = 1, while 1,000 one-byte writes report exactly 1,001.
+
+The three wrong results this project published — and the rules that now
+prevent them — are collected for general readers in
+[reports/HOW-WE-WERE-WRONG.md](reports/HOW-WE-WERE-WRONG.md).
 
 **The instruction term is now measured, not assumed**
 ([06-instructions](examples/06-instructions/README.md)) — and it **confirms
@@ -65,7 +72,10 @@ established.
 Strict rule applied: if the spec says it anywhere, it is CONFIRMS, not
 UNDOCUMENTED.
 
-**CONFIRMS SPEC (17):** 1 CU per instruction-encoding byte (4/2 rates);
+**CONFIRMS SPEC (18):** both transaction limits are enforced where the
+spec puts them — 32 KiB size (RPC-rejected at 32,888 bytes) and 1,024
+accounts (CLI-refused at 1,025 total); 1 CU per instruction-encoding byte
+(4/2 rates);
 memory units charge peak usage, not end-state (the grow-8-shrink-1
 discriminator reported MU 8); ephemeral accounts need no state proof
 (created 3× during the −23 desync while permanent creation failed) and
@@ -97,7 +107,15 @@ catch-via-`invoke_err` pattern only applies to syscall-level invoke errors.
 retracted: deeper timed retries showed a ~1–5 minute indexing lag, not
 impossibility; see UNDOCUMENTED.)
 
-**UNDOCUMENTED (30):** ephemeral-create pricing (6,303 CU, SU 0 — vs SU 1
+**UNDOCUMENTED (35):** declaring accounts costs 0 CU — even nonexistent
+addresses pass read-only — and per-account costs are exactly linear (44
+CU/8-byte read, 590 CU/write incl. the 512 writable syscall) with no
+superlinear term anywhere; the size limit binds before the account limit
+(184-byte envelope → max 1,018 declared accounts; 1,024 is unreachable);
+the -O verdict (-O1 within 0.12% of -O3's runtime at 35% of its size;
+-Os/-Oz dominated; upgrade pipeline ≈170–195 CU/byte); ephemeral fleets
+(950 creations in one transaction, resizes ~SU-free); ephemeral-create
+pricing (6,303 CU, SU 0 — vs SU 1
 for permanent); block-history read pricing (18 CU per block, no syscall);
 entry stub maps exactly one 4KB stack page and the
 stack never grows on demand; every transaction's floor therefore includes
@@ -133,9 +151,9 @@ decompression ceiling (unprobed — the CLI auto-switches to its chunked
 flow); the creating-proof staleness boundary (90 s accepted; limit
 untested); the compression formula's proof-byte term (inferred from
 same-key creating-proof sizes; six exact points, but the embedded proof's
-size is not printed by the CLI); the
-optimization-level CU comparison (sizes measured, per-transaction CU
-gated on the desync).
+size is not printed by the CLI); the 1,000-recipient payout (projection
+~537k CU from measured per-account figures — a real measurement needs
+fund-holding recipients, blocked while permanent creation is down).
 
 Plus, from examples 07–08: compression pricing = 5,853 + 1 CU per
 account byte + 1 CU per proof byte (exact at five sizes incl. recompression;
@@ -268,7 +286,8 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | [06-instructions](examples/06-instructions/README.md) | Instruction term measured directly (spin loops, log/grow probes) | 4,924–164,928 | 0 | 1–2 | 0 | 420 B | `ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu` |
 | [07-cpi](examples/07-cpi/README.md) | CPI: 1,511/hop, +4,096/depth, 16 call depths | 4,925–89,038 | 0 | 1–16 | 0–1 | 848 B + 734 B | `ta9TmfhHffn5hJ3P83hC8NtwERjworfg7pSGxU_GrEPEmy` |
 | [08-compression](examples/08-compression/README.md) | Round trip: compress = 5,853 + 1 CU/acct B + 1 CU/proof B (no SU refund); decompress ≈ base + 1 CU/B revived; beware the ~1–5 min proof-indexing lag | 5,565–72,037 | 0–16 | 1–17 | 0 | 996 B | `tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY` |
-| [10-blockcontext](examples/10-blockcontext/README.md) | Block history: 18 CU/block read, window exactly 512, data chain-verified, genuine ns timestamps | 4,895–14,095 | 0 | 1–2 | 0–1 | 480 B | `taUgLhBWu3NCyYud3ioz…` (borrowed 04B slot) |
+| [09-limits](examples/09-limits/README.md) | Accounts: declaring is FREE (0 CU), read 44/acct, write 590/acct, exactly linear; ceiling = size at 1,018 declared | 4,947–2,480,667 | 0–2 | 1–1,001 | 0 | 960 B | `ta10jkQhjY5E8XIahXpz…` (borrowed 06 slot) |
+| [10-blockcontext](examples/10-blockcontext/README.md) | Block history: 18 CU/block read, window exactly 512, data chain-verified, genuine ns timestamps | 4,895–14,095 | 0 | 1–2 | 0–1 | 480 B | `taUgLhBWu3NCyYud3ioz…` (borrowed 04B slot, restored) |
 | [11-budgets](examples/11-budgets/README.md) | MU ≡ Pages Used (28/28), peak-charged; SU = ceil(bytes grown/4096), never refunded; -O3 default = largest binary (2.9× -O1) | re-measurements | 0–16 | = MU | — | — | (cross-example measurements) |
 | [12-ephemeral](examples/12-ephemeral/README.md) | Ephemeral create works during the proof outage: 6,303 CU, SU 0; cannot hold funds; GC claim blocked (−43) | 6,303 | 0 | 1 | 0 | (ex08) | `tahE2pWV9nqlASlyX7PT…` |
 

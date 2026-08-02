@@ -177,10 +177,26 @@ ascending. Wire structs: `__attribute__((packed))`, little-endian.
   bill within a transaction. State
   units: ceil(bytes grown/4096) per resize, 1 per create, never refunded
   by any operation.
-- The SDK's default `-O3` produced the LARGEST binary of six optimization
-  levels for real code (2.9× `-O1`) — deploy cost tracks size directly.
-  Whether -O3 still wins on hot-path CU is unmeasured; don't assume either
-  way.
+- **Compile with `-O1`, not the SDK's `-O3` default.** Measured on real
+  SHA-256 code at a fixed input: -O1 is within 0.12% of -O3's runtime CU
+  (224,775 vs 224,511) at 35% of the binary size and half the deploy cost
+  (345k vs 734k CU). -Os/-Oz are dominated by -O1 on BOTH axes; -O0 runs
+  4.27× slower forever. Only keep -O3 if a measured hot loop proves it
+  pays.
+- **Prefer EPHEMERAL accounts for scratch state**
+  (`tsys_account_create_ephemeral(idx, seed)`): 6,303 CU vs ~7,800 for
+  permanent, zero state units (even resizes are ~SU-free), no state proof
+  to fetch — and they keep working during proof-service outages, which
+  froze every other creation path for hours. Constraints: cannot hold
+  funds; any program may reportedly delete them when writable. ~950
+  creations fit in one transaction.
+- **Declaring accounts is free and account handling is exactly linear**:
+  0 CU per declared-untouched account (even nonexistent ones, read-only),
+  44 CU per 8-byte read, 590 CU per write (512 of it the per-account
+  writable syscall). The real ceiling is transaction SIZE: 32 bytes per
+  address + ~184-byte envelope → max ~1,018 declared accounts, below the
+  advertised 1,024. Pass accounts as repeated flags (no comma lists), and
+  pre-sort with `thru txn sort`.
 - Events: the first 8 payload bytes become the event's `event_type` tag;
   reassemble `event_type || data` to recover the payload. ~10 bytes of
   per-event record overhead land in the event buffer page accounting.

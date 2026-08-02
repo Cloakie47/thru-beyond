@@ -306,6 +306,35 @@ defects: `execute`'s error path surfaces neither signature nor figures,
 and failures are absent from `account transactions`. README, skill,
 gotchas, and issues #36/#39 amended.
 
+## Examples 09 + O-levels — added 2026-08-02, predictions at `9ab3321`/`937bd35`/`96efd57`
+
+**Declared accounts cost 0 CU; per-account costs exactly linear (44
+read / 590 write); no superlinear term. UNDOCUMENTED — and it REFUTED our
+own ~32 CU/entry point prediction** (the predictions listed 0 as the
+alternative outcome, which won). (1) Ladders to N=1,018/1,000 on a
+1,022-strong ephemeral fleet, 3 runs on key cells, all identical.
+(2) Any nonzero touch_none slope, any slope drift at N=1,024 scale, Pages
+growth on reads. (3) Yes — all reachable, none appeared.
+
+**The size limit binds before the account limit: max 1,018 declared
+(184-byte envelope), with three distinct failure surfaces. UNDOCUMENTED
+(the interaction); the limits themselves CONFIRM the spec.** (1) Probes at
+1,010–1,022 (1,018 passes, 1,019 fails size, 1,022 reports 32,888 bytes),
+1,023–1,025 (CLI count refusals). (2) 1,019 passing, or count binding
+first. (3) Yes.
+
+**-O verdict: -O1 within 0.12% of -O3's runtime at 35% of the size;
+-Os/-Oz dominated; -O0 4.27×. UNDOCUMENTED.** (1) 04A's own slot cycled
+through six binaries at input 1,024 B, 3 runs each; the closing -O3
+upgrade restored the original and reproduced the recorded 224,511 exactly
+(a full-circle integrity check). (2) -O3 winning by a margin worth its
+2.9× size, or -Os beating -O1. (3) Yes. The pre-committed "-Os/-Oz within
+±15%" held; "-O0 2–3×" underestimated (4.27×).
+
+**Ephemeral fleet economics: 950 creates in one transaction; ephemeral
+resizes ~SU-free. UNDOCUMENTED.** (1) fleet_create_n at 950 (SU 2!) and
+72 (SU 1). (2) Per-account SU like permanent accounts. (3) Yes.
+
 ## UNVERIFIED (flagged in README until a discriminating experiment exists)
 
 **"Every page charge is 1 CU per byte zero-filled" as applied to anonymous

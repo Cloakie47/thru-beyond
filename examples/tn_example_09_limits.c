@@ -108,6 +108,37 @@ TSDK_ENTRYPOINT_FN void start(uchar const *d, ulong sz) {
             tsdk_return(TSDK_SUCCESS);
             break;
         }
+        case 7U: { /* fleet_create_n: <u16 seed_index per slot> x n —
+                      creates n EPHEMERAL accounts (no proofs), each with an
+                      8-byte data region. Seed = 32 zero bytes with the LE
+                      u32 seed index at offset 0; the per-slot index list is
+                      needed because account lists are sorted, seeds are not. */
+            if (sz != 8UL + 2UL * n) {
+                tsdk_revert(EX09_ERR_BAD_SIZE);
+            }
+            for (uint i = 0; i < n; i++) {
+                uchar seed[32];
+                for (uint k = 0; k < 32U; k++) {
+                    seed[k] = 0;
+                }
+                uint sidx = (uint)d[8 + 2 * i] | ((uint)d[9 + 2 * i] << 8);
+                seed[0] = (uchar)sidx;
+                seed[1] = (uchar)(sidx >> 8);
+                ushort idx = (ushort)(2U + i);
+                ulong r = tsys_account_create_ephemeral(idx, seed);
+                if (r != TSDK_SUCCESS) {
+                    tsdk_revert(EX09_ERR_CREATE + ((ulong)i << 16));
+                }
+                if (tsys_set_account_data_writable(idx) != TSDK_SUCCESS) {
+                    tsdk_revert(EX09_ERR_WRITABLE);
+                }
+                if (tsys_account_resize(idx, 8UL) != TSDK_SUCCESS) {
+                    tsdk_revert(EX09_ERR_RESIZE);
+                }
+            }
+            tsdk_return(TSDK_SUCCESS);
+            break;
+        }
         case 6U: { /* pay_all: treasury at idx 2 pays 1 token to idx 3..3+n-1 */
             for (uint i = 0; i < n; i++) {
                 if (tsys_account_transfer(2UL, 3UL + i, 1UL)

@@ -1,8 +1,8 @@
 {"example":"11-budgets","cli":"0.3.2+54058649","network":"alphanet","date":"2026-08-02","note":"MU sweep: 28 txns, MU==Pages in all; per-example rows carry mu fields in their own results.json. O-level binary sizes below; runtime CU gated on desync.","rows":[
-{"olevel":"-O0","binary_bytes":2376},
-{"olevel":"-O1","binary_bytes":1216},
-{"olevel":"-O2","binary_bytes":1280},
-{"olevel":"-O3","binary_bytes":3496,"note":"SDK default; largest"},
-{"olevel":"-Os","binary_bytes":1344},
-{"olevel":"-Oz","binary_bytes":1344}
+{"olevel":"-O0","binary_bytes":2376,"upgrade_cu":546100,"runtime_cu_1024B":959579,"runs":3},
+{"olevel":"-O1","binary_bytes":1216,"upgrade_cu":345340,"runtime_cu_1024B":224775,"runs":3},
+{"olevel":"-O2","binary_bytes":1280,"upgrade_cu":355264,"runtime_cu_1024B":244317,"runs":3},
+{"olevel":"-O3","binary_bytes":3496,"upgrade_cu":734292,"runtime_cu_1024B":224511,"runs":3,"note":"SDK default; largest binary; restoration run reproduced the recorded 224,511 exactly"},
+{"olevel":"-Os","binary_bytes":1344,"upgrade_cu":366340,"runtime_cu_1024B":249653,"runs":3},
+{"olevel":"-Oz","binary_bytes":1344,"upgrade_cu":367620,"runtime_cu_1024B":249653,"runs":3}
 ]}
