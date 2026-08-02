@@ -1,5 +1,25 @@
 # 09-limits — predictions, committed BEFORE measurement
 
+## Addendum (2026-08-02, ephemeral-fleet variant)
+
+The fleet is built from EPHEMERAL accounts (no proofs — works during the
+desync). `fleet_create_n` creates N per transaction from
+program-constructed seeds (LE index in a zero seed), with a u16
+seed-index-per-slot permutation in instruction data (sorted account lists
+≠ index order). Predictions: per-fleet-account cost ≈ 512 (create) + 512
+(set_writable) + 512 + 8 (resize to 8) + ~1,200 internal ≈ **~2,700 CU**;
+fleet-per-transaction ceiling set by size: 8 + 34N + envelope ≤ 32,768 →
+**N_max ≈ 950–956**; the fleet txn's SU = N (resize), MU ≈ N + 1.
+Part C (real token payout) stays BLOCKED: ephemerals cannot hold funds —
+projection only, so labeled. All other Part A/B predictions stand as
+committed at `9ab3321`. Program 09 goes on-chain by borrowing example
+06's slot (upgrade path); 06 is fully measured and restorable.
+
+Part 1 (-O runtime) predictions stand as committed at `96efd57`
+(11-budgets): -O0 ≈ 2–3× -O3's runtime CU; -Os/-Oz within ±15% of -O3
+either way; fixed input 1,024 B gives a direct cross-check — the -O3
+binary must reproduce the recorded 224,511.
+
 Date: 2026-08-02. Spec read first (`/spec/core/transactions.md`): max
 transaction size 32 KiB; at most 1,024 accounts referenced; addresses are
 exactly 32 bytes; writable and read-only lists each sorted ascending, no
