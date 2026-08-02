@@ -1,0 +1,8 @@
+{"example":"03-storage","cli":"0.3.2+54058649","network":"alphanet","program":"tasFvCl6TciwEVQO1tU-UJ2qDt7KXtx86qaZzWRf7l9_d1","account":"taCr3SBDQu395xbvc0eG6odoWC6uhwJEp5O1kgMOwqlJoi","rows":[
+{"instr":"init_create_resize8192","date":"2026-08-01","proof_bytes":232,"cu":15913,"su":2,"pages":3,"slot":538222,"runs":1},
+{"instr":"write_p0","date":"2026-08-01","cu":9582,"su":0,"pages":2,"mu":2,"slot":538269,"runs":3},
+{"instr":"write_p0_x2","date":"2026-08-01","cu":9555,"su":0,"pages":2,"slot":538292,"runs":3},
+{"instr":"write_p0_p1","date":"2026-08-01","cu":13659,"su":0,"pages":3,"mu":3,"slot":538313,"runs":3},
+{"instr":"read_p1","date":"2026-08-01","cu":4892,"su":0,"pages":1,"mu":1,"slot":538329,"runs":3},
+{"instr":"deploy_total","date":"2026-08-01","cu":320292,"su":2,"note":"5 txns: 12489+38574+188080+45367+35782, binary 838 B","runs":1}
+]}

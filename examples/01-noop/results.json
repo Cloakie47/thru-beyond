@@ -1,0 +1,4 @@
+{"example":"01-noop","cli":"0.3.2+54058649","network":"alphanet","program":"taIjGXEaz6jCa8ORd1YWClEQgbxCdw-hDSpzGtYkZAXk-_","rows":[
+{"instr":"noop","date":"2026-08-01","cu":4763,"su":0,"pages":1,"mu":1,"slot":537635,"sig":"tsa3Evjf6qnMq19TKRaipdNdxwywx_nn1vr0PCCkStiOOZFNzPLlF9KcdcJjTwlM9lSIv8Lc3cECSurYWid-giCiAX","runs":3},
+{"instr":"noop","date":"2026-08-01","note":"earlier deployment, seed beyond_ex01_empty","program_override":"taE7jHNiFMO776M_FhZ8xjLeHvj-Je8P_Rvzjo5aP2qKB0","cu":4763,"su":0,"pages":1,"slot":537255,"runs":6}
+]}

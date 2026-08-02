@@ -277,6 +277,35 @@ SHA-256 example (3,496 B vs 1,216 at -O1). UNDOCUMENTED, sizes only.**
 comparison — the half that decides the recommendation — is gated on the
 proof-root desync (deploys fail with −23) and explicitly NOT claimed.
 
+## Examples 10 + 12 (block context, ephemeral) — added 2026-08-02,
+## predictions at `bde3a78` and `9ead3fd`
+
+**Ephemeral creation needs no proof and survives the proof outage.
+CONFIRMS SPEC.** (1) 3 creates (6,303 CU, SU 0) during the −23 desync,
+with a permanent-create control failing minutes apart. (2) Any error on
+the ephemeral path. (3) Yes — the desync itself made the discriminating
+condition. Cannot-hold-funds also CONFIRMS (transfer in reverts).
+Any-party GC: UNVERIFIED — both test paths blocked (syscall −43 with
+psz 0; CLI blocked at proof fetch).
+
+**Block context: no syscall, 18 CU per block read, window exactly 512,
+data real, timestamps genuinely nanosecond. CONFIRMS SPEC (window/fault)
++ UNDOCUMENTED (pricing).** (1) Full ladder on the borrowed 04B slot;
+read_many N=511 crossed 511 read-only pages with Pages flat at 1;
+ago=511 executes, 512/513/1024 fault VM_FAILED; the emitted 0x78 record
+matches the Explorer's hash, producer, and full-precision timestamp
+exactly. (2) A slope kink, a page charge, data mismatch, or padded
+timestamps. (3) Yes, for each.
+
+**Self-corrections (this session): the repo's "failed transactions
+report no CU anywhere" and "consumed MU reported nowhere in the CLI"
+claims were both over-broad** — `txn get` reports full consumed figures
+(including a `Memory Units Consumed` line) for successful AND reverted
+transactions; our grep filters had hidden the line. The narrow, correct
+defects: `execute`'s error path surfaces neither signature nor figures,
+and failures are absent from `account transactions`. README, skill,
+gotchas, and issues #36/#39 amended.
+
 ## UNVERIFIED (flagged in README until a discriminating experiment exists)
 
 **"Every page charge is 1 CU per byte zero-filled" as applied to anonymous

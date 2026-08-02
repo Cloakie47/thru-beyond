@@ -1,0 +1,13 @@
+{"example":"04-hash","cli":"0.3.2+54058649","network":"alphanet","rows":[
+{"arm":"A","program":"ta-rWexuBmL558uxLZXqOb23DM0HeThZGSxG2mOm3-6oxv","input":0,"blocks":1,"cu":18959,"su":0,"pages":2,"mu":2,"date":"2026-08-01","runs":3},
+{"arm":"A","input":32,"blocks":1,"cu":19097,"date":"2026-08-01","runs":3},
+{"arm":"A","input":256,"blocks":5,"cu":70359,"date":"2026-08-01","runs":3},
+{"arm":"A","input":1024,"blocks":17,"cu":224511,"date":"2026-08-01","runs":3},
+{"arm":"A","input":4096,"blocks":65,"cu":841119,"date":"2026-08-01","runs":3},
+{"arm":"B","program":"taUgLhBWu3NCyYud3ioz-8XS-K8ly2BxzHk3-HRaQ0MMcb","input":0,"blocks":1,"cu":15997,"date":"2026-08-01","runs":3},
+{"arm":"B","input":32,"blocks":1,"cu":16135,"date":"2026-08-01","runs":3},
+{"arm":"B","input":256,"blocks":5,"cu":55549,"date":"2026-08-01","runs":6,"note":"re-measured 3x on 2026-08-02, identical"},
+{"arm":"B","input":1024,"blocks":17,"cu":174157,"date":"2026-08-01","runs":3},
+{"arm":"B","input":4096,"blocks":65,"cu":648589,"date":"2026-08-01","runs":3},
+{"note":"binaries: A 3496 B, B 2744 B. 04B address later borrowed for example 10 (2026-08-02)."}
+]}

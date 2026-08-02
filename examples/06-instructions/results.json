@@ -1,0 +1,18 @@
+{"example":"06-instructions","cli":"0.3.2+54058649","network":"alphanet","program":"ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu","date":"2026-08-02","rows":[
+{"instr":"spin","body_bytes":8,"n":0,"cu":4924,"pages":1,"mu":1,"runs":3},
+{"instr":"spin","n":1,"cu":4932,"runs":3},{"instr":"spin","n":10,"cu":5004,"runs":3},
+{"instr":"spin","n":100,"cu":5724,"runs":3},{"instr":"spin","n":1000,"cu":12924,"runs":3},
+{"instr":"spin","n":10000,"cu":84924,"pages":1,"mu":1,"runs":3},
+{"instr":"spin_wide","body_bytes":16,"n":0,"cu":4928,"runs":3},{"instr":"spin_wide","n":1,"cu":4944,"runs":3},
+{"instr":"spin_wide","n":10,"cu":5088,"runs":3},{"instr":"spin_wide","n":100,"cu":6528,"runs":3},
+{"instr":"spin_wide","n":1000,"cu":20928,"runs":3},{"instr":"spin_wide","n":10000,"cu":164928,"runs":3},
+{"instr":"spin_load","body_bytes":10,"n":0,"cu":4926,"runs":3},{"instr":"spin_load","n":1,"cu":4937,"runs":3},
+{"instr":"spin_load","n":10,"cu":5036,"runs":3},{"instr":"spin_load","n":100,"cu":6026,"runs":3},
+{"instr":"spin_load","n":1000,"cu":15926,"runs":3},{"instr":"spin_load","n":10000,"cu":114926,"runs":3},
+{"instr":"spin_store","body_bytes":10,"n":0,"cu":4930,"runs":3},{"instr":"spin_store","n":1,"cu":4941,"runs":3},
+{"instr":"spin_store","n":10,"cu":5040,"runs":3},{"instr":"spin_store","n":100,"cu":6030,"runs":3},
+{"instr":"spin_store","n":1000,"cu":15930,"runs":3},{"instr":"spin_store","n":10000,"cu":114930,"runs":3},
+{"instr":"log0","cu":5454,"runs":3},{"instr":"log8","cu":5462,"runs":3},
+{"instr":"grow","n":0,"cu":5464,"pages":1,"runs":3},{"instr":"grow","n":4096,"cu":9560,"pages":2,"runs":3},
+{"instr":"grow_reject","n":8,"error":"syscall error, non-page-multiple","runs":3}
+]}

@@ -1,0 +1,22 @@
+{"example":"08-compression","cli":"0.3.2+54058649","network":"alphanet","program":"tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY","rows":[
+{"instr":"compress","size":8,"proof_bytes":200,"cu":6061,"su":0,"pages":1,"date":"2026-08-02"},
+{"instr":"compress","size":100,"proof_bytes":200,"cu":6153,"su":0,"pages":1,"mu":1,"date":"2026-08-02","sig":"tsub2BBaYbgVOUNG1yBMsnA3bTEg9GRzkNGDycXV7Ea3Y5lk4qD0-_NH_x_2BKTAGwka4za_aKyOd93fnSFlu9ChvV","slot":604530},
+{"instr":"compress","size":1000,"proof_bytes":264,"cu":7117,"su":0,"pages":1,"date":"2026-08-02"},
+{"instr":"compress","size":5000,"proof_bytes":200,"cu":11053,"su":0,"pages":1,"date":"2026-08-02"},
+{"instr":"compress","size":65536,"proof_bytes":232,"cu":71621,"su":0,"pages":1,"date":"2026-08-02"},
+{"instr":"recompress","size":100,"proof_bytes":200,"cu":6153,"su":0,"date":"2026-08-02"},
+{"instr":"recompress","size":1000,"proof_bytes":168,"cu":7021,"su":0,"date":"2026-08-02"},
+{"instr":"recompress","size":5000,"proof_bytes":200,"cu":11053,"su":0,"date":"2026-08-02"},
+{"instr":"compress","size":30000,"proof_bytes":232,"cu":36085,"su":0,"date":"2026-08-02"},
+{"instr":"compress","size":31000,"proof_bytes":200,"cu":37053,"su":0,"date":"2026-08-02"},
+{"instr":"compress","size":31800,"proof_bytes":168,"cu":37821,"su":0,"date":"2026-08-02"},
+{"instr":"compress","size":32400,"proof_bytes":264,"cu":38517,"su":0,"date":"2026-08-02"},
+{"instr":"compress","size":65536,"proof_bytes":264,"cu":71653,"su":0,"date":"2026-08-02","note":"fresh r64k account"},
+{"instr":"decompress","size":100,"cu":6211,"su":1,"pages":2,"date":"2026-08-02"},
+{"instr":"decompress","size":1000,"cu":7079,"su":1,"pages":2,"mu":2,"date":"2026-08-02","sig":"ts2jLr94rZlm74SkkfF9yBO2Ha37AtilyEgBjltX5Bea45j33H8ejRiZHu9FD50eScG6ShBz23h-f5xby-UZ_HDyU6"},
+{"instr":"decompress","size":5000,"cu":11111,"su":2,"pages":3,"mu":3,"date":"2026-08-02","sig":"tsPTtLVgbrcBeVcbF8bqnaSw3mmt-Wcz2ItF6iTHoc88YFBhgN6iVy-kYEPstNd2edwNb0veaaZWRkeebgJVSuDh63"},
+{"instr":"decompress_chunked_final","size":65536,"cu":72037,"su":16,"pages":17,"date":"2026-08-02","note":"3-chunk buffer flow; chunk txns not itemized"},
+{"instr":"modify_1byte","size":100,"cu":5565,"su":0,"pages":2,"date":"2026-08-02","runs":3},
+{"instr":"create_ephemeral","cu":6303,"su":0,"pages":1,"date":"2026-08-02","runs":3,"sig":"tsI1urx_90g0eWWRGq3xYD58FAwCtzJPyQ3bQkrqWwbBlUZxoIJEXIcVT6qs9hfUiDBE0lHVF9JYOa3prTdlqqBx1g","note":"during -23 desync; SU 0 vs permanent create SU 1"},
+{"instr":"init_create","proof_bytes":200,"cu":6593,"su":0,"pages":1,"date":"2026-08-02","note":"create at size 0, ex08 v1 shape; proof 232 variant 6625, 264 variant 6657"}
+]}

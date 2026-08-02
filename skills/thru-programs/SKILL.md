@@ -160,9 +160,15 @@ ascending. Wire structs: `__attribute__((packed))`, little-endian.
 
 ## 4. Gotchas that change what you do
 
-- **Failed transactions report NO consumed CU anywhere** (not in errors,
-  not via `txn get`, not listed in `account transactions`). You cannot
-  profile revert paths. Design measurements to succeed.
+- **Failure observability is signature-gated.** `thru txn get <sig>` DOES
+  report full consumed figures (CU, SU, MU, Pages) for reverted
+  transactions — but the `execute` error path prints neither the
+  signature nor the figures, and failures never appear in
+  `account transactions`. Capture signatures from intermediate
+  "Transaction completed" lines, or design measurements to succeed.
+- **Ephemeral accounts** (`tsys_account_create_ephemeral(idx, seed)`, no
+  proof): 6,303 CU, SU 0, cannot hold funds — and they keep working when
+  the proof infrastructure is down, unlike every other creation path.
 - **`Pages Used` IS the consumed memory units** (proven identical in 28/28
   transactions via the Explorer) — the third budget, printed unlabeled.
   It is NOT a CU meter: it counts CU-charged pages AND CU-free event pages

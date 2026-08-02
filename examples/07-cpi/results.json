@@ -1,0 +1,16 @@
+{"example":"07-cpi","cli":"0.3.2+54058649","network":"alphanet","caller":"ta9TmfhHffn5hJ3P83hC8NtwERjworfg7pSGxU_GrEPEmy","callee":"taAf417KM3aXeDTILaGkk2kUMpJbDadZSGnm-1uSAJIRCu","date":"2026-08-02","rows":[
+{"instr":"no_cpi","cu":4925,"pages":1,"runs":6},
+{"instr":"cpi_1","cu":10492,"pages":2,"mu":2,"runs":3},
+{"instr":"cpi_n","n":1,"cu":10526,"pages":2,"runs":3},
+{"instr":"cpi_n","n":2,"cu":12037,"pages":2,"runs":3},
+{"instr":"cpi_n","n":4,"cu":15059,"pages":2,"runs":3},
+{"instr":"cpi_n","n":8,"cu":21103,"pages":2,"mu":2,"runs":6},
+{"instr":"cpi_deep","n":1,"cu":16147,"pages":3,"runs":3},
+{"instr":"cpi_deep","n":2,"cu":21754,"pages":4,"runs":3},
+{"instr":"cpi_deep","n":4,"cu":32968,"pages":6,"runs":3},
+{"instr":"cpi_deep","n":8,"cu":55396,"pages":10,"runs":3},
+{"instr":"cpi_deep","n":13,"cu":83431,"pages":15,"runs":3},
+{"instr":"cpi_deep","n":14,"cu":89038,"pages":16,"mu":16,"runs":6,"note":"deepest call depth 16; N=15+ fail with invoke -24"},
+{"instr":"cpi_read_acct","cu":11116,"pages":3,"runs":3,"note":"read acct idx 2 value 3 via CPI - indices txn-global"},
+{"instr":"cpi_revert","error":"whole txn reverts with callee code 0x7BAD; caller handler never runs","runs":3}
+]}

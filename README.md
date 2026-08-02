@@ -65,9 +65,13 @@ established.
 Strict rule applied: if the spec says it anywhere, it is CONFIRMS, not
 UNDOCUMENTED.
 
-**CONFIRMS SPEC (14):** 1 CU per instruction-encoding byte (4/2 rates);
+**CONFIRMS SPEC (17):** 1 CU per instruction-encoding byte (4/2 rates);
 memory units charge peak usage, not end-state (the grow-8-shrink-1
-discriminator reported MU 8);
+discriminator reported MU 8); ephemeral accounts need no state proof
+(created 3× during the −23 desync while permanent creation failed) and
+cannot hold funds (transfer into one reverts); the block-context window
+is exactly 512 blocks, faulting at 512+, and its records match the chain
+byte-for-byte with genuinely nanosecond timestamps;
 per-width load costs; per-width store costs; cost tracks bytes not
 instruction count (the core rule); 512 syscall base with per-call extras on
 top; anonymous page allocation = 4,096 per page (magnitude); CoW
@@ -93,7 +97,9 @@ catch-via-`invoke_err` pattern only applies to syscall-level invoke errors.
 retracted: deeper timed retries showed a ~1–5 minute indexing lag, not
 impossibility; see UNDOCUMENTED.)
 
-**UNDOCUMENTED (28):** entry stub maps exactly one 4KB stack page and the
+**UNDOCUMENTED (30):** ephemeral-create pricing (6,303 CU, SU 0 — vs SU 1
+for permanent); block-history read pricing (18 CU per block, no syscall);
+entry stub maps exactly one 4KB stack page and the
 stack never grows on demand; every transaction's floor therefore includes
 512 + 4,096 before user code; program image including .data/.bss is
 read-only — no writable globals; .bss is stored in the image (binary
@@ -101,15 +107,23 @@ inflation); event pages are counted in `Pages Used` but never CU-charged;
 10-byte per-event record overhead; zero-length emit records no event;
 resize growth = 1 CU/byte grown with constant-cost shrink; resize SU =
 ceil(bytes grown/4096); delete requires data size 0 and refunds nothing;
-`set_anonymous_segment_sz` rejects non-page-multiple sizes; failed
-transactions report no consumed CU anywhere; `Pages Used` is a mixed meter;
+`set_anonymous_segment_sz` rejects non-page-multiple sizes; failure
+observability is signature-gated — `txn get` reports full consumed
+figures (CU/SU/MU/Pages) for reverted transactions, but the `execute`
+error path prints neither signature nor figures and failures are absent
+from `account transactions` (this corrects the repo's earlier broader
+"failed transactions report no CU anywhere" claim); `Pages Used` is a
+mixed meter;
 Zknh SHA-256 speedup is 1.30× (quantified); CPI pricing (1,511 CU per
 same-depth hop, +4,096 per depth level, frame pages reused across
 sequential hops); the SDK txn accessors read top-level data, so
 quickstart-pattern programs cannot be CPI callees; CPI events attribute to
 the emitting frame's program.
 
-**UNVERIFIED (11):** the per-byte reading of anonymous allocation; the
+**UNVERIFIED (12):** the ephemeral any-party garbage-collection claim
+(both test paths blocked: the compress syscall's proof shape is
+undocumented (−43 even with proof size 0), and the CLI path needs the
+desynced proof service); the per-byte reading of anonymous allocation; the
 ~1,430 CU create-syscall residual attribution; 04's intercept instruction
 term (never independently counted); the docs-figure reconciliation
 attribution; the event-header layout interpretation; deployment cost as a
@@ -254,7 +268,9 @@ identical runs each. Consumed units from real CLI output — never estimated.
 | [06-instructions](examples/06-instructions/README.md) | Instruction term measured directly (spin loops, log/grow probes) | 4,924–164,928 | 0 | 1–2 | 0 | 420 B | `ta10jkQhjY5E8XIahXpzTlhDYhv8bLkbtYHWuZAlJC1LVu` |
 | [07-cpi](examples/07-cpi/README.md) | CPI: 1,511/hop, +4,096/depth, 16 call depths | 4,925–89,038 | 0 | 1–16 | 0–1 | 848 B + 734 B | `ta9TmfhHffn5hJ3P83hC8NtwERjworfg7pSGxU_GrEPEmy` |
 | [08-compression](examples/08-compression/README.md) | Round trip: compress = 5,853 + 1 CU/acct B + 1 CU/proof B (no SU refund); decompress ≈ base + 1 CU/B revived; beware the ~1–5 min proof-indexing lag | 5,565–72,037 | 0–16 | 1–17 | 0 | 996 B | `tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY` |
-| [11-budgets](examples/11-budgets/README.md) | MU ≡ Pages Used (28/28); SU = ceil(bytes grown/4096), never refunded; -O3 default = largest binary (2.9× -O1) | re-measurements | 0–16 | = MU | — | — | (cross-example measurements) |
+| [10-blockcontext](examples/10-blockcontext/README.md) | Block history: 18 CU/block read, window exactly 512, data chain-verified, genuine ns timestamps | 4,895–14,095 | 0 | 1–2 | 0–1 | 480 B | `taUgLhBWu3NCyYud3ioz…` (borrowed 04B slot) |
+| [11-budgets](examples/11-budgets/README.md) | MU ≡ Pages Used (28/28), peak-charged; SU = ceil(bytes grown/4096), never refunded; -O3 default = largest binary (2.9× -O1) | re-measurements | 0–16 | = MU | — | — | (cross-example measurements) |
+| [12-ephemeral](examples/12-ephemeral/README.md) | Ephemeral create works during the proof outage: 6,303 CU, SU 0; cannot hold funds; GC claim blocked (−43) | 6,303 | 0 | 1 | 0 | (ex08) | `tahE2pWV9nqlASlyX7PT…` |
 
 The Pages column above doubles as the consumed-MU column (proven identical
 in 11-budgets).

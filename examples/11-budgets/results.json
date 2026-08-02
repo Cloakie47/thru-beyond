@@ -1,0 +1,8 @@
+{"example":"11-budgets","cli":"0.3.2+54058649","network":"alphanet","date":"2026-08-02","note":"MU sweep: 28 txns, MU==Pages in all; per-example rows carry mu fields in their own results.json. O-level binary sizes below; runtime CU gated on desync.","rows":[
+{"olevel":"-O0","binary_bytes":2376},
+{"olevel":"-O1","binary_bytes":1216},
+{"olevel":"-O2","binary_bytes":1280},
+{"olevel":"-O3","binary_bytes":3496,"note":"SDK default; largest"},
+{"olevel":"-Os","binary_bytes":1344},
+{"olevel":"-Oz","binary_bytes":1344}
+]}

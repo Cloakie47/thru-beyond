@@ -1,11 +1,52 @@
 # 10-blockcontext — the rolling 512-block history window
 
-**STATUS: program built (480 B), predictions committed (`bde3a78`),
-deployment BLOCKED by the alphanet proof-root desync** — every `program
-create` fails at the manager step with `Invalid state proof (-23)` (the
-post-outage condition documented in the gotchas log; it has persisted
-across sessions). All on-chain measurements below are pending chain
-recovery; nothing in this file is a measured CU figure yet.
+**MEASURED 2026-08-02 via the upgrade path**: with `program create` still
+blocked by the proof desync, the 480 B binary was installed by upgrading
+the example **04-arm-B program slot** — so this example runs at
+`taUgLhBWu3NCyYud3ioz-8XS-K8ly2BxzHk3-HRaQ0MMcb`, borrowed from 04B,
+breaking the usual one-address-per-example convention (04B's own binary
+can be restored by re-upgrading). Predictions were committed at `bde3a78`
+before measurement.
+
+## Measured results (all 3× identical; raw rows in results.json)
+
+| Instruction | CU | Pages |
+|---|---|---|
+| `read_current` (emit full 0x78 record) | 5,533 | 2 |
+| `read_ago` N=5 | 5,539 | 2 |
+| `read_many` N=1 | 4,915 | 1 |
+| `read_many` N=10 | 5,077 | 1 |
+| `read_many` N=100 | 6,697 | 1 |
+| `read_many` N=511 | 14,095 | 1 |
+| `read_beyond` N=511 | 4,895 | 1 |
+| `read_beyond` N=512 / 513 / 1024 | **VM_FAILED (−767)** | — |
+| `commit_reveal` draw (N=3, salted) | 5,529 | 2 |
+
+- **No syscall for reads — confirmed**: `read_many` N=1 reconciles as the
+  4,608 floor + 307 instruction/data CU with no third 512 anywhere; the
+  emit variants add exactly one emit.
+- **Slope: exactly 18.0 CU per historical block read** at every pair —
+  perfectly linear, ~one three-hundredth of a syscall per block.
+- **Pages stayed 1 while N=511 crossed 511 distinct read-only pages** —
+  the strongest confirmation yet that read-only pages are never counted
+  or charged.
+- **The window is exactly 512 blocks**: blocks_ago 511 executes; 512, 513
+  and 1,024 fault with `VM_FAILED` (register-echo `user_error 0x1000070`)
+  — CONFIRMS the spec's "accessing further back faults". CU of the
+  failing attempts is retrievable only if the signature were captured
+  (execute's error path doesn't print it).
+
+## The data is REAL — verified against the chain
+
+`read_current`'s emitted 0x78-byte record at slot 654354, vs the
+Explorer's view of the same block:
+
+- **Block hash: exact match** (`abf682cfc09a1876…1ba9416d`).
+- **Timestamp: exact match to the last digit — 1785703966203258180 ns.**
+  Resolution is genuinely nanosecond-grade (no millisecond padding), now
+  confirmed from inside the VM, not just the Explorer.
+- **Producer: matches** (`taDLOptS8JTdTBtLWs_c…`).
+- Bonus visibility: the record's `block_price` field read 1024.
 
 ## What the spec says (read first, per process rules)
 

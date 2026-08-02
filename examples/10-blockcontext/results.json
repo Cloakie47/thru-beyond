@@ -1,0 +1,14 @@
+{"example":"10-blockcontext","cli":"0.3.2+54058649","network":"alphanet","program":"taUgLhBWu3NCyYud3ioz-8XS-K8ly2BxzHk3-HRaQ0MMcb","note":"borrowed 04B address via upgrade during the proof desync","date":"2026-08-02","rows":[
+{"instr":"read_current","cu":5533,"pages":2,"slot":654135,"sig":"tsQkb8SI-XMT8jbCwzs6w3i05GO0MwRwEp3a3vycrTKCagBsxqonI9fOILvJmWY0CQL320aoYefA_I0iuo9ak6DhxR","runs":3},
+{"instr":"read_ago","n":5,"cu":5539,"pages":2,"runs":3},
+{"instr":"read_many","n":1,"cu":4915,"pages":1,"runs":3},
+{"instr":"read_many","n":10,"cu":5077,"pages":1,"runs":3},
+{"instr":"read_many","n":100,"cu":6697,"pages":1,"runs":3},
+{"instr":"read_many","n":511,"cu":14095,"pages":1,"runs":3,"note":"511 distinct read-only pages, zero page charges"},
+{"instr":"read_beyond","n":511,"cu":4895,"runs":1,"note":"last valid blocks_ago"},
+{"instr":"read_beyond","n":512,"error":"VM_FAILED -767, user_error 0x1000070","runs":1},
+{"instr":"read_beyond","n":513,"error":"VM_FAILED -767","runs":1},
+{"instr":"read_beyond","n":1024,"error":"VM_FAILED -767","runs":1},
+{"instr":"commit_reveal_draw","n":3,"cu":5529,"ev":1,"runs":1},
+{"instr":"verification","note":"read_current record at slot 654354: hash abf682cf... EXACT match to Explorer; ts 1785703966203258180 ns EXACT match; producer matches taDLOptS...; block_price field = 1024"}
+]}
