@@ -3,6 +3,24 @@
 Working, deployed, cost-measured example programs for the Thru blockchain.
 See `CLAUDE.md` for the rules and workflow.
 
+## The headline: envelope-limited, not compute-limited
+
+Verified against `examples/*/results.json` (2026-08-04):
+
+| Meter | Declared ceiling | Heaviest measured (single txn) | % of ceiling |
+|---|---|---|---|
+| Compute units | 4,294,967,295 | 2,480,667 (950-account fleet create) | 0.058% |
+| State units | 65,535 | 16 (64 KiB resize) | 0.024% |
+| Memory units | 65,535 | 1,001 (1,000-account write) | 1.5% |
+| **Transaction size** | **32,768 B** | **32,760 B (1,018 declared accounts)** | **99.98%** |
+
+In every recorded transaction, size sat closer to its ceiling than any
+declared budget did to its own — no counterexample (each declared account
+spends the size budget ~64× faster than the MU budget, so the ordering
+cannot flip at scale). The one known unmeasured boundary: a resize toward
+the 16 MiB account maximum would put SU at 6.25% of its ceiling from a
+tiny transaction. Full argument in [PUBLISH.md](PUBLISH.md).
+
 ## The cost model
 
 Built by examples [01](examples/01-noop/README.md),
@@ -107,15 +125,24 @@ catch-via-`invoke_err` pattern only applies to syscall-level invoke errors.
 retracted: deeper timed retries showed a ~1–5 minute indexing lag, not
 impossibility; see UNDOCUMENTED.)
 
-**UNDOCUMENTED (37):** declaring accounts costs 0 CU — even nonexistent
+**UNDOCUMENTED (39):** declaring accounts costs 0 CU — even nonexistent
 addresses pass read-only — and per-account costs are exactly linear (44
 CU/8-byte read, 590 CU/write incl. the 512 writable syscall) with no
 superlinear term anywhere; the size limit binds before the account limit
 (184-byte envelope → max 1,018 declared accounts; 1,024 is unreachable);
 the -O verdict (-O1 within 0.12% of -O3's runtime at 35% of its size;
--Os/-Oz dominated); the upgrade-cost law — **upgrade CU ≈ 137,149 +
-171.1 × binary bytes, residuals ≤ ±0.43% over six sizes** (approximate:
-same-size binaries differ by up to 1,280 CU); ephemeral fleets
+-Os/-Oz dominated); the upgrade-cost law — **≈ 137,149 + 171.1 × binary
+bytes over six sizes** for the 4-printed-txn subtotal, now superseded in
+precision by the **per-stage dissection (2026-08-04): the pipeline is 5
+transactions (the chunk-write signature is never printed); buffer create
+= 11,723 + 1 CU/byte and chunk write = 34,514 + 4.75 CU/byte, both
+exact; finalize ≈165–168 CU/byte; cleanup 35,782 flat; fully
+deterministic (3 identical same-binary runs, stage-exact reproduction
+across 110,000 slots)**; the Step-2 upgrade transaction's cost is a
+deterministic function of the old→new SIZE TRANSITION (grow vs same-size
+overwrite differ; the -Os/-Oz "1,280 CU content difference" was exactly
+this — no content-dependence exists anywhere in the pipeline);
+ephemeral fleets
 (950 creations in one transaction, resizes ~SU-free); ephemeral-create
 pricing (6,303 CU/transaction single, ~2,611 marginal in a batch —
 different quantities, reconciled in example 12 — SU 0 vs SU 1
@@ -145,7 +172,7 @@ sequential hops); the SDK txn accessors read top-level data, so
 quickstart-pattern programs cannot be CPI callees; CPI events attribute to
 the emitting frame's program.
 
-**UNVERIFIED (14):** the ephemeral any-party garbage-collection claim
+**UNVERIFIED (13):** the ephemeral any-party garbage-collection claim
 (both test paths blocked: the compress syscall's proof shape is
 undocumented (−43 even with proof size 0), and the CLI path needs the
 desynced proof service); the per-byte reading of anonymous allocation; the
@@ -160,9 +187,7 @@ flags 0 and 1 on a writable owned ephemeral; what it expects is unknown);
 signature/proof; SDK-only, unspecced); the ~32,100–32,300-byte single-transaction
 decompression ceiling (unprobed — the CLI auto-switches to its chunked
 flow); the creating-proof staleness boundary (90 s accepted; limit
-untested); the compression formula's proof-byte term (inferred from
-same-key creating-proof sizes; six exact points, but the embedded proof's
-size is not printed by the CLI); the 1,000-recipient payout (projection
+untested); the 1,000-recipient payout (projection
 ~537k CU from measured per-account figures — a real measurement needs
 fund-holding recipients, blocked while permanent creation is down).
 
@@ -174,10 +199,14 @@ not economic for the payer); compression is executed by the system program,
 fee-payer-signed, on program-owned accounts; **the query service indexes
 compressed leaves with a ~1–5 minute lag during which every decompression
 surface fails with a fatal-looking "bintrie: key not found"** (this
-retracted the earlier "decompression impossible" claim); decompression ≈
-base + ~1 CU per byte revived with SU = pages restored, and accounts above
+retracted the earlier "decompression impossible" claim); decompression =
+**5,911 + 1 CU/revived byte + 1 CU/proof byte, exact** (refit closed
+2026-08-04 from chain history; the earlier "≈ base + ~1 CU/byte" absorbed
+proof-size variation) with SU = pages restored, and accounts above
 the ~32 KiB single-transaction ceiling are revived via the CLI's chunked
-buffer flow; live accounts are not in the compressed bintrie (only
+buffer flow; the compression proof-byte term is **VERIFIED against the
+transactions' own instruction data** (instr = proof + 3 at 13/13 points,
+CU − instr − 5,850 = account size exactly); live accounts are not in the compressed bintrie (only
 `creating` proofs exist for them); the Explorer MCP reports consumed memory
 units that the CLI omits — and (11-budgets) **consumed MU ≡ `Pages Used`
 in 28/28 transactions**, so the CLI does print it, unlabeled; event pages

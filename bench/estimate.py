@@ -61,10 +61,15 @@ def load():
 def validate():
     data = load()
     errors, covered, skipped = [], 0, 0
+    fam = {}   # family -> [calibration_rows, predicted_rows]
 
-    def rep(label, actual, pred):
+    def cal(family, n=1):
+        fam.setdefault(family, [0, 0])[0] += n
+
+    def rep(label, actual, pred, family=None):
         nonlocal covered
         covered += 1
+        fam.setdefault(family or label.rsplit(" ", 1)[0], [0, 0])[1] += 1
         e = pred - actual
         errors.append(abs(e))
         flag = "" if e == 0 else f"  err={e:+d}"
@@ -74,69 +79,93 @@ def validate():
     for instr, per in [("spin", 8), ("spin_wide", 16), ("spin_load", 11), ("spin_store", 11)]:
         rows = {r["n"]: r["cu"] for r in data["06-instructions"] if r["instr"] == instr}
         fixed = rows[0] - FLOOR  # calibrated instruction+data term of the n=0 path
+        cal(f"06 {instr}")
         for n, cu in rows.items():
             if n == 0: continue
-            rep(f"06 {instr} n={n}", cu, FLOOR + fixed + per * n)
+            rep(f"06 {instr} n={n}", cu, FLOOR + fixed + per * n, f"06 {instr}")
 
     # 05 v1 emit: calibrate fill at each n (loop term), add event law
+    # NOTE the 1:1 ratio below - every emit row leans on its own fill_only
+    # calibration row; this family validates the event law only.
     v1 = [r for r in data["05-events"] if r.get("binary") == "v1_534B"]
     fi = {r["n"]: r["cu"] for r in v1 if r["instr"] == "fill_only"}
     for r in (r for r in v1 if r["instr"] == "emit_n"):
         n = r["n"]
         base = fi[n] - FLOOR  # everything except the emit call (calibrated)
+        cal("05 emit")
         cu, _, mu, _ = predict(instr_bytes=base - 7 * PAGE - SYSCALL + 58,
                                syscalls=1, pages_allocated=7, event_sizes=[n])
-        rep(f"05 emit n={n}", r["cu"], cu)
+        rep(f"05 emit n={n}", r["cu"], cu, "05 emit")
 
-    # 07 cpi_n: calibrate at n=1, predict others (hop = 1024 + 487 callee/site)
+    # 07 cpi_n: calibrate at n=1,2 (base + hop), predict others
     cn = {r["n"]: r["cu"] for r in data["07-cpi"] if r["instr"] == "cpi_n"}
     hop = cn[2] - cn[1]
+    cal("07 cpi_n", 2)
     for n, cu in cn.items():
         if n <= 2: continue
-        rep(f"07 cpi_n n={n}", cu, cn[1] + hop * (n - 1))
+        rep(f"07 cpi_n n={n}", cu, cn[1] + hop * (n - 1), "07 cpi_n")
     dp = {r["n"]: r["cu"] for r in data["07-cpi"] if r["instr"] == "cpi_deep"}
     lvl = dp[2] - dp[1]
+    cal("07 deep", 2)
     for n, cu in dp.items():
         if n <= 2: continue
-        rep(f"07 deep n={n}", cu, dp[1] + lvl * (n - 1))
+        rep(f"07 deep n={n}", cu, dp[1] + lvl * (n - 1), "07 deep")
 
     # 09 ladders: calibrate at n=1
     for instr, key in [("read_all", 44), ("write_all", 590)]:
         rows = {r["n"]: r["cu"] for r in data["09-limits"] if r["instr"] == instr}
+        cal(f"09 {instr}")
         for n, cu in rows.items():
             if n == 1: continue
-            rep(f"09 {instr} n={n}", cu, rows[1] + key * (n - 1))
+            rep(f"09 {instr} n={n}", cu, rows[1] + key * (n - 1), f"09 {instr}")
 
-    # 02 resize: exact law, no calibration needed beyond baseline row
+    # 02 resize: exact law; the baseline (shrink) row is the calibration
+    cal("02 resize", 2)  # one baseline row per binary (v1, v2)
     for r in (r for r in data["02-counter"] if r["instr"] == "resize"):
         grown = r["to"] - r["from"]
-        rep(f"02 resize->{r['to']} ({r['binary']})", r["cu"], r["baseline"] + grown)
+        rep(f"02 resize->{r['to']} ({r['binary']})", r["cu"], r["baseline"] + grown,
+            "02 resize")
 
-    # 08 compression: exact law
+    # 08 compression: exact law (intercept 5,853 was fitted on this dataset)
+    cal("08 compress")
     for r in (r for r in data["08-compression"] if r["instr"] in ("compress", "recompress")):
-        rep(f"08 {r['instr']} {r['size']}", r["cu"], 5853 + r["size"] + r["proof_bytes"])
+        rep(f"08 {r['instr']} {r['size']}", r["cu"], 5853 + r["size"] + r["proof_bytes"],
+            "08 compress")
 
     # 10 read_many: calibrate n=1
     rm = {r["n"]: r["cu"] for r in data["10-blockcontext"] if r["instr"] == "read_many"}
+    cal("10 read_many")
     for n, cu in rm.items():
         if n == 1: continue
-        rep(f"10 read_many n={n}", cu, rm[1] + 18 * (n - 1))
+        rep(f"10 read_many n={n}", cu, rm[1] + 18 * (n - 1), "10 read_many")
 
     # 04 hash: calibrate intercept+slope from two block counts, predict rest
     for arm, slope in [("A", 12846), ("B", 9884)]:
         rows = {r["input"]: r for r in data["04-hash"] if r.get("arm") == arm}
         icept = rows[256]["cu"] - slope * rows[256]["blocks"]
+        cal(f"04{arm}", 2)  # slope + intercept anchor
         for L, r in rows.items():
             if L in (256,): continue
             if L in (0, 32):
                 skippedmsg = True  # small-input tail deviation documented
                 continue
-            rep(f"04{arm} L={L}", r["cu"], icept + slope * r["blocks"])
+            rep(f"04{arm} L={L}", r["cu"], icept + slope * r["blocks"], f"04{arm}")
 
     # categories NOT predictable without per-syscall calibration
     print("\nNOT predicted (calibration-class, documented): create internals"
           " (~1,430 CU payload work), deploy/upgrade pipeline components,"
           " small-input tail deviations (04 L=0/32), degraded-chain rows.")
+
+    print("\ncalibration vs predicted, per family (a family whose ratio nears"
+          " 1:1 mostly validates itself):")
+    tc = tp = 0
+    for f in sorted(fam):
+        c, p = fam[f]
+        tc += c; tp += p
+        print(f"  {f:<14} calibration rows: {c:>2}   predicted rows: {p:>2}"
+              f"   ({p}/{c} per calibration)" if c else
+              f"  {f:<14} calibration rows:  0   predicted rows: {p:>2}")
+    print(f"  {'TOTAL':<14} calibration rows: {tc:>2}   predicted rows: {tp:>2}")
 
     n = len(errors)
     exact = sum(1 for e in errors if e == 0)

@@ -79,10 +79,21 @@ for a, b in [(1, 2), (2, 4), (4, 8), (8, 13), (13, 14)]:
 for n, r in dp.items():
     check(f"07 deep pages n={n}", r["pages"] == n + 2)
 
-print("== 08: compress = 5,853 + size + proof (all points) ==")
+print("== 08: compress = 5,853 + size + proof; instr = proof + 3 (all points) ==")
 for r in [r for r in data["08-compression"] if r["instr"] in ("compress", "recompress")]:
     check(f"compress {r['size']}", r["cu"] == 5853 + r["size"] + r["proof_bytes"],
           f"{r['cu']} != 5853+{r['size']}+{r['proof_bytes']}")
+    if "instr_bytes" in r:
+        check(f"compress {r['size']} instr=proof+3",
+              r["instr_bytes"] == r["proof_bytes"] + 3, r["instr_bytes"])
+
+print("== 08: decompress = 5,911 + revived + proof; instr = revived + proof + 43 ==")
+for r in [r for r in data["08-compression"]
+          if r["instr"] == "decompress" and "proof_bytes" in r]:
+    check(f"decompress {r['size']}", r["cu"] == 5911 + r["size"] + r["proof_bytes"],
+          f"{r['cu']} != 5911+{r['size']}+{r['proof_bytes']}")
+    check(f"decompress {r['size']} instr",
+          r["instr_bytes"] == r["size"] + r["proof_bytes"] + 43, r["instr_bytes"])
 
 print("== 10: read_many slope 18 ==")
 rm = {r["n"]: r["cu"] for r in data["10-blockcontext"] if r["instr"] == "read_many"}
@@ -113,9 +124,37 @@ if "11-budgets" in data:
         check("O0 worst runtime", ol["-O0"]["runtime_cu_1024B"] ==
               max(r["runtime_cu_1024B"] for r in ol.values()))
         check("O1 cheapest upgrade", ol["-O1"]["upgrade_cu"] ==
-              min(r["upgrade_cu"] for r in ol.values()))
+              min(r["upgrade_cu"] for r in ol.values() if "upgrade_cu" in r))
 
-print("== 11: upgrade CU ~= 137,149 + 171.1/byte (0.5% tolerance) ==")
+print("== 11: pipeline stage laws (exact) + 5-txn totals + determinism ==")
+if "11-budgets" in data:
+    st = [r for r in data["11-budgets"] if "stage_create" in r]
+    for r in st:
+        b = r["binary_bytes"]
+        check(f"11 {r['olevel']} create = 11,723 + B",
+              r["stage_create"] == 11723 + b, r["stage_create"])
+        check(f"11 {r['olevel']} chunk = 34,514 + 4.75B",
+              r["stage_chunk"] == 34514 + int(4.75 * b), r["stage_chunk"])
+        check(f"11 {r['olevel']} cleanup flat", r["stage_cleanup"] == 35782)
+        tot5 = sum(r[k] for k in ("stage_create", "stage_chunk", "stage_finalize",
+                                  "stage_upgrade", "stage_cleanup"))
+        check(f"11 {r['olevel']} 5-txn total", tot5 == r["pipeline_cu"], tot5)
+        if "upgrade_cu" in r:
+            check(f"11 {r['olevel']} 4-txn subtotal = recorded upgrade_cu",
+                  tot5 - r["stage_chunk"] == r["upgrade_cu"], tot5 - r["stage_chunk"])
+    byo = {r["olevel"]: r for r in st}
+    if "-Os" in byo and "-Oz" in byo:
+        same = all(byo["-Os"][k] == byo["-Oz"][k] for k in
+                   ("stage_create", "stage_chunk", "stage_finalize", "stage_cleanup"))
+        check("11 Os/Oz identical except upgrade step", same and
+              byo["-Oz"]["stage_upgrade"] - byo["-Os"]["stage_upgrade"] == 1280)
+    if "-O3" in byo and "-O3-rerun" in byo:
+        same = all(byo["-O3"][k] == byo["-O3-rerun"][k] for k in
+                   ("stage_create", "stage_chunk", "stage_finalize", "stage_cleanup"))
+        check("11 O3 rerun identical except upgrade step (grow vs overwrite)", same and
+              byo["-O3-rerun"]["stage_upgrade"] - byo["-O3"]["stage_upgrade"] == 1344)
+
+print("== 11: 4-txn subtotal law ~= 137,149 + 171.1/byte (0.5% tolerance) ==")
 if "11-budgets" in data:
     pts = [(r["binary_bytes"], r["upgrade_cu"]) for r in data["11-budgets"]
            if "upgrade_cu" in r]

@@ -454,3 +454,67 @@ this validates the *additive model and its constants*, not a priori
 prediction. Categories excluded and stated in the tool's output: create
 internals, deploy/upgrade pipeline sub-transactions, 04's small-input
 tail (L=0/32), degraded-chain rows.
+
+## 2026-08-04 — pipeline dissection, compress-law verification, and the UNVERIFIED walk
+
+**Upgrade pipeline: deterministic; the "irreducible per-instance term" is
+RETRACTED (published one day, dissolved the next).** Three consecutive
+upgrades of the identical -O3 binary reproduced all five stages to the CU
+(15,219 / 51,120 / 629,830 / 54,805 / 35,782); stages 1-3 and 5 also
+reproduced exactly across 110,000 slots. The recorded `upgrade_cu` figures
+were 4-txn subtotals (the chunk-write signature is never printed — the
+already-logged create-pipeline gotcha, unapplied to our own grep). Full
+5-stage breakdowns for all six historical runs were reconstructed from the
+temp-buffer account's chain history (deterministic seed → one account holds
+every run). Stage laws: create = 11,723 + 1 CU/byte (exact, 5 sizes);
+chunk = 34,514 + 4.75 CU/byte (exact, single-chunk regime); finalize
+≈165–168 CU/byte non-exact; cleanup = 35,782 flat (9/9). The -Os/-Oz
+1,280 CU difference localizes entirely to the Step-2 upgrade transaction:
+grow 1,280→1,344 (SU 1) vs overwrite 1,344→1,344 (SU 0) — a deterministic
+function of the SIZE TRANSITION, not content. Refutable by: any two
+same-transition upgrades of the same binary differing (3 runs say no), or
+a same-size different-content pair differing in stages 1/2/3/5 (-Os/-Oz
+say no). What remains open: the upgrade-step's exact transition formula
+(7 transitions observed, no closed form fitted — flagged, not claimed).
+
+**Compression proof-byte term: VERIFIED (was UNVERIFIED).** All 16
+successful system-program compression transactions re-fetched from history
+(Explorer pagination past the CLI's 50-txn window). Compress/recompress:
+instruction data = proof + 3-byte tag, and CU − instr_bytes − 5,850 =
+account size EXACTLY at 13/13 points — the proof term now rests on the
+transaction's own instruction-data size, not on inferred same-key proof
+sizes. Refutation (a point off the plane) was reachable at 13 points and
+did not occur.
+
+**Decompress law refit: CLOSED from history.** decompress CU = 5,911 +
+revived bytes + proof bytes, exact at all 3 points (6,211 / 7,079 /
+11,111); instruction data = revived + proof + 43. The old non-constant
+remainders (6,111/6,079/6,111) were proof-size variation (200/168/200) —
+the same absorbed-term error class, now corrected with the proof term
+subtracted. The "≈ base + ~1 CU/byte revived" phrasing is superseded.
+
+**The UNVERIFIED walk (14 items, classified; the one testable item tested):**
+
+| # | Item | Status |
+|---|---|---|
+| 1 | Ephemeral any-party GC | BLOCKED — undocumented args (−43) program-side AND desync (CLI proof fetch) |
+| 2 | Anonymous per-byte unification | NOT TESTABLE by design — refutation unreachable (page-granular API) |
+| 3 | Create-syscall ~1,430 residual attribution | BLOCKED by desync (needs varied permanent creates) |
+| 4 | 04 intercept instruction term | NOT chain-blocked — needs a disassembly hand-count; labor-bounded, outside the upgrades+ephemeral bucket, not attempted this pass |
+| 5 | Docs-figure reconciliation | BLOCKED externally — quickstart binary unavailable |
+| 6 | Event-header layout interpretation | NOT TESTABLE from any CLI/Explorer surface (runtime internals) |
+| 7 | First-deploy cost vs binary size | BLOCKED by desync (needs `program create`) |
+| 8 | `user_error` register-echo | NOT TESTABLE as stated — no committed discriminating hypothesis |
+| 9 | Decompression single-txn ceiling | BLOCKED by desync (decompress consumes proofs) |
+| 10 | Creating-proof staleness boundary | BLOCKED by desync (needs accepted creates) |
+| 11 | Compression proof-byte term | **TESTED → VERIFIED** (13 exact points, see above) |
+| 12 | 1,000-recipient payout | BLOCKED by desync (needs fund-holding permanent recipients) |
+| 13 | `set_flags` semantics | BLOCKED — undocumented arguments (−41) |
+| 14 | `create_eoa` purpose/requirements | BLOCKED — undocumented arguments (−22) |
+
+Net: 6 desync-blocked, 3 argument-blocked (one of them also
+desync-blocked on its second path), 1 external, 3 not-testable-as-stated,
+1 offline-labor, 1 tested-and-verified. The identified next cheap win
+outside this list: a permanent-account resize toward the 16 MiB maximum
+(needs no creates) would measure the SU boundary of the envelope-limited
+claim (predicted SU 4,096 = 6.25% of ceiling).

@@ -45,9 +45,13 @@ compose wide, not deep.
 ## 4. 500-account batch write (1 byte each)
 
 Floor + 500 × 590 (writable syscall + 8-byte CoW + loop) ≈ **~300,000 CU**
-(measured write_all N=512: 307,033). MU = 501 — **this is the budget that
-actually bites**: the CLI's 10,000 MU default covers it, but a 10,001-page
-workload would not. SU 0. Recommend: **CU 400,000 · SU 2 · MU 510**.
+(measured write_all N=512: 307,033). MU = 501 — **the tightest budget
+relative to its default** (5% of the CLI's 10,000, where CU sits at 0.1%
+of its default) — but note it still does not bind: even the heaviest
+measured workload reached 1,001 MU against a 65,535 ceiling, and the
+32 KiB transaction size runs out before any declared budget does (batch
+writes cap near ~1,015 accounts for this reason, not because of MU).
+SU 0. Recommend: **CU 400,000 · SU 2 · MU 510**.
 
 ## Does over-requesting cost anything today?
 

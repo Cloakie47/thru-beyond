@@ -102,19 +102,55 @@ upgrade of this program.
 **Upgrade-cost law (all six points, least squares):**
 
 ```
-upgrade CU ≈ 137,149 + 171.1 × binary bytes    (residuals ≤ ±0.43%)
+4-txn subtotal ≈ 137,149 + 171.1 × binary bytes    (residuals ≤ ±0.43%)
 ```
 
-This is an APPROXIMATE law, unlike the exact ones elsewhere in this repo:
-the two 1,344-byte binaries (-Os/-Oz) differ by 1,280 CU at identical
-size, so a per-instance term (proof sizes and content across the
-pipeline's five transactions) is irreducible from these points. It
-supersedes the earlier "≈170–195 CU per binary byte" phrasing, which was
-wrong in form — quoting a pure per-byte rate for a line with a 137k
+It supersedes the earlier "≈170–195 CU per binary byte" phrasing, which
+was wrong in form — quoting a pure per-byte rate for a line with a 137k
 intercept doesn't reproduce any single point (345,340 / 1,216 = 284
 CU/byte). Third occurrence of the same fitting error in this repo
 (compress law, decompress law, now this): a constant absorbed into a
 slope. Checked by `bench/verify.py` at 0.5% tolerance.
+
+## The pipeline, dissected (2026-08-04) — deterministic, and 5 transactions, not 4
+
+Two follow-ups dissolved what this section briefly published as an
+"irreducible per-instance term":
+
+**The recorded `upgrade_cu` figures are 4-txn subtotals.** The pipeline
+runs FIVE transactions — buffer create, chunk write, finalize, upgrade,
+cleanup — but the chunk-write signature is never printed (the same CLI
+gap already known from `program create`), so the original sweep's
+signature grep missed it. The temp-buffer account's seed is
+deterministic, so its chain history holds every past run's five
+transactions; the full breakdowns were reconstructed from there and the
+4-txn sums reproduce all six recorded figures exactly.
+
+| Stage | Law | Evidence |
+|---|---|---|
+| 1 buffer create | **11,723 + 1 CU/binary byte — exact** | 5 sizes, to the CU |
+| 2 chunk write | **34,514 + 4.75 CU/byte — exact** (single-chunk regime, ≤30,720 B) | 5 sizes, to the CU |
+| 3 finalize | ≈165–168 CU/byte, near-linear, NOT exact; the dominant stage | 252,644→629,830 across 1,216→3,496 B |
+| 4 upgrade | depends on the SIZE TRANSITION old→new (see below) | 7 transitions |
+| 5 cleanup | **35,782 flat** | 9/9 runs |
+
+**Determinism: CONFIRMED.** Three consecutive upgrades of the identical
+-O3 binary produced five identical stages, to the CU, all three times
+(15,219 / 51,120 / 629,830 / 54,805 / 35,782). Stages 1–3 and 5 also
+reproduced exactly across 110,000 slots (the 2026-08-02 -O3 run vs
+2026-08-04 reruns).
+
+**The -Os/-Oz "1,280 CU content difference" was neither content nor
+noise.** Stage-by-stage, the two 1,344-byte binaries are identical in
+four of five stages — including finalize, which processes the full
+(different) contents. The whole difference sits in the Step-2 upgrade
+transaction: -Os *grew* the program account 1,280→1,344 (43,303 CU, SU 1)
+while -Oz *overwrote* 1,344→1,344 (44,583 CU, SU 0). Same effect on the
+identical -O3 binary: grow 1,344→3,496 = 53,461 (SU 1); overwrite
+3,496→3,496 = 54,805 (SU 0). The upgrade step is a deterministic function
+of the size transition; **no content-dependence was observed anywhere in
+the pipeline.** The 4-txn law above stands as a size-only approximation;
+budget per stage (and per transition) when it matters.
 
 ## Reproduce
 

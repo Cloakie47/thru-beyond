@@ -90,11 +90,21 @@ CLI exposes.)
 | modify (1-byte write, 100 B account, ×3 identical) | 5,565 | 0 | 2 |
 | recompress (post-modify, 100 B) | 6,153 | 0 | 1 |
 
-- **Decompression ≈ base + ~1 CU per byte revived** (slopes 0.96–1.01
-  between the single-transaction points), far below the predicted 2–3 CU/B.
-  SU = pages of data restored (1/1/2/16 = ceil(S/4096)), mirroring resize
-  growth. Exact decomposition into data + proof terms awaits per-transaction
-  proof sizes, which the CLI does not print for this flow.
+- ~~Decompression ≈ base + ~1 CU per byte revived~~ **REFIT CLOSED
+  (2026-08-04): decompress = 5,911 + 1 CU/revived byte + 1 CU/proof byte,
+  exact at all three single-transaction points** (6,211 = 5,911+100+200;
+  7,079 = 5,911+1,000+168; 11,111 = 5,911+5,000+200). The proof sizes the
+  CLI never prints were recovered from the transactions themselves:
+  decompress instruction data = revived bytes + proof + 43-byte header.
+  The old approximate slope absorbed proof-size variation — the same
+  error class as the compress law's first fit. SU = pages restored.
+- **The compress law's proof term is now VERIFIED, not inferred
+  (2026-08-04)**: all 16 successful system-program compression
+  transactions were re-fetched from chain history (Explorer pagination —
+  the CLI's `account transactions` window is 50); compress/recompress
+  instruction data = proof + 3-byte tag, and CU − instr_bytes − 5,850 =
+  account size exactly at 13/13 points. `results.json` carries
+  `instr_bytes` and `slot` per row; `bench/verify.py` checks both laws.
 - **Recompress = compress**: 6,153 = 5,853 + 100 + 200, the same formula to
   the CU as the first compression.
 - **The 32 KiB single-transaction ceiling is real but routed around**: for
@@ -104,9 +114,9 @@ CLI exposes.)
   single-transaction size boundary (~32,100–32,300 B by payload arithmetic)
   remains unprobed: UNVERIFIED.
 - One-shot operations (compress, decompress, recompress per state) cannot
-  be run 3×; `modify` was (3 identical). Cross-checks instead: five exact
-  points on the compress formula, four decompressions with consistent
-  slopes.
+  be run 3×; `modify` was (3 identical). Cross-checks instead: 13 exact
+  points on the compress formula (proof term verified against instruction
+  data) and 3 exact points on the decompress formula.
 
 ## Proof sizes and staleness
 

@@ -4,6 +4,36 @@ Everything below was measured on alphanet with thru CLI 0.3.2+54058649
 (node 0.0.0-local+599daf60), 2026-08-01/02, `--fee 0`, three identical runs
 per figure. Nothing here is estimated.
 
+## The headline: you are envelope-limited, not compute-limited
+
+Every ceiling and every "heaviest measured" below is verified against
+`examples/*/results.json` (2026-08-04):
+
+| Meter | Declared ceiling | Heaviest measured (single transaction) | % of ceiling |
+|---|---|---|---|
+| Compute units | 4,294,967,295 (u32) | 2,480,667 — 950-account ephemeral fleet create | 0.058% |
+| State units | 65,535 (u16) | 16 — 64 KiB account resize | 0.024% |
+| Memory units | 65,535 (u16) | 1,001 — 1,000-account batch write | 1.5% |
+| **Transaction size** | **32,768 B** | **32,760 B — 1,018 declared accounts** | **99.98%** |
+
+Across every workload this repo measured, none of the three declared
+budgets ever came closer to its ceiling than the transaction came to
+32,768 bytes — checked row by row, no counterexample. Account-heavy rows
+top out at 1.5% of the MU ceiling while sitting at 50–99.98% of the size
+ceiling; everything else stays below 0.06% of any budget while even the
+smallest possible transaction (~248 B) is 0.76% of the size ceiling. The
+per-account arithmetic cannot flip: each declared account costs 0.098% of
+the size budget but at most 0.0015% of the MU budget — size runs out ~64×
+faster. **The scaling constraint on Thru today is the 32 KiB envelope,
+not compute.**
+
+One known boundary of the claim, stated honestly: it covers *measured*
+workloads (account sizes to 65,536 B). A single resize toward the 16 MiB
+account maximum would consume SU = 4,096 (6.25% of that ceiling) from a
+~250-byte transaction — the one workload shape known to us that would put
+a declared budget closer to its ceiling than the envelope. Unmeasured;
+permanent-create-gated work would be needed to push SU there.
+
 ## The model
 
 ```
@@ -40,7 +70,9 @@ priced across all 16 call depths (example 07: 1,511 CU per same-depth hop,
 +4,096 per depth level, frame pages reused for breadth; callee reverts
 abort the whole transaction). Account compression round-tripped (example
 08): compress = 5,853 + 1 CU/account byte + 1 CU/proof byte with no SU
-refund; decompress ≈ base + ~1 CU/byte revived; the proof service indexes
+refund (proof term verified against instruction data, 13/13 exact);
+decompress = 5,911 + 1 CU/revived byte + 1 CU/proof byte, exact; the
+proof service indexes
 compressed leaves with a ~1–5 minute lag that masquerades as "bintrie: key
 not found". No heap-segment measurements. Outside that envelope this model
 is extrapolation.
@@ -73,8 +105,8 @@ is extrapolation.
   the two syscalls blocked on undocumented argument shapes
   (`account_set_flags` −41, `account_create_eoa` −22).
 
-Headline counts as of 2026-08-03: **CONFIRMS 18 / CORRECTS 5 /
-UNDOCUMENTED 37 / UNVERIFIED 14** — the root README's findings ledger is
+Headline counts as of 2026-08-04: **CONFIRMS 18 / CORRECTS 5 /
+UNDOCUMENTED 39 / UNVERIFIED 13** — the root README's findings ledger is
 the itemized source of truth and supersedes the per-item lists above where
 they lag. Additions since this section was first written: both transaction
 limits, MU-peak charging, ephemeral pricing and fleets, the
