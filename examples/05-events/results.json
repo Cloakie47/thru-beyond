@@ -37,5 +37,9 @@
 {"binary":"v2_652B","instr":"emit_n","n":4088,"cu":100147,"pages":10,"mu":10,"date":"2026-08-02","runs":6},
 {"binary":"v2_652B","instr":"emit_two","n":4076,"cu":100513,"pages":9,"date":"2026-08-02","runs":3},
 {"binary":"v2_652B","instr":"emit_two","n":4078,"cu":100545,"pages":10,"date":"2026-08-02","runs":3,"note":"two-event boundary: overhead is per-event"},
-{"binary":"v3_672B","instr":"grow_shrink","cu":34665,"pages":8,"mu":8,"date":"2026-08-02","runs":3,"note":"MU charges peak"}
+{"binary":"v3_672B","instr":"grow_shrink","cu":34665,"pages":8,"mu":8,"date":"2026-08-02","runs":3,"note":"MU charges peak"},
+{"binary":"v4","instr":"return_only","cu":34127,"pages":8,"date":"2026-08-03","runs":3,"note":"re-baseline after adding inc_seg dispatch (+20 CU vs v1)"},
+{"binary":"v4","instr":"inc_seg_4096","cu":38791,"pages":9,"date":"2026-08-03","runs":3,"note":"tsys_increment_anonymous_segment_sz +1 page: baseline + 512 + 4096 + 56"},
+{"binary":"v4","instr":"inc_seg_16384","cu":51079,"pages":12,"date":"2026-08-03","runs":3,"note":"+4 pages: baseline + 512 + 4x4096 + 56"},
+{"binary":"v4","instr":"inc_seg_100","date":"2026-08-03","failed":true,"user_error":"0x50E4","syscall_error":-28,"note":"non-page-multiple delta rejected, same page-granular rule as 0x00; failed txns report no CU in execute output"}
 ]}

@@ -97,8 +97,24 @@ size and half the deploy cost. -Os/-Oz are dominated by -O1 on BOTH axes
 on this target (bigger and 11% slower — the "optimize-for-size" flags
 lose to plain -O1). -O0 is catastrophic: 4.27× runtime, forever. The
 SDK's -O3 default buys 0.12% runtime for ~389,000 extra deploy CU per
-upgrade of this program. (Upgrade cost scales ≈170–195 CU per binary byte
-across the six points — pipeline overhead, not the 1 CU/byte raw rate.)
+upgrade of this program.
+
+**Upgrade-cost law (all six points, least squares):**
+
+```
+upgrade CU ≈ 137,149 + 171.1 × binary bytes    (residuals ≤ ±0.43%)
+```
+
+This is an APPROXIMATE law, unlike the exact ones elsewhere in this repo:
+the two 1,344-byte binaries (-Os/-Oz) differ by 1,280 CU at identical
+size, so a per-instance term (proof sizes and content across the
+pipeline's five transactions) is irreducible from these points. It
+supersedes the earlier "≈170–195 CU per binary byte" phrasing, which was
+wrong in form — quoting a pure per-byte rate for a line with a 137k
+intercept doesn't reproduce any single point (345,340 / 1,216 = 284
+CU/byte). Third occurrence of the same fitting error in this repo
+(compress law, decompress law, now this): a constant absorbed into a
+slope. Checked by `bench/verify.py` at 0.5% tolerance.
 
 ## Reproduce
 

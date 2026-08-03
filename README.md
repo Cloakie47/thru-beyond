@@ -107,16 +107,23 @@ catch-via-`invoke_err` pattern only applies to syscall-level invoke errors.
 retracted: deeper timed retries showed a ~1–5 minute indexing lag, not
 impossibility; see UNDOCUMENTED.)
 
-**UNDOCUMENTED (35):** declaring accounts costs 0 CU — even nonexistent
+**UNDOCUMENTED (37):** declaring accounts costs 0 CU — even nonexistent
 addresses pass read-only — and per-account costs are exactly linear (44
 CU/8-byte read, 590 CU/write incl. the 512 writable syscall) with no
 superlinear term anywhere; the size limit binds before the account limit
 (184-byte envelope → max 1,018 declared accounts; 1,024 is unreachable);
 the -O verdict (-O1 within 0.12% of -O3's runtime at 35% of its size;
--Os/-Oz dominated; upgrade pipeline ≈170–195 CU/byte); ephemeral fleets
+-Os/-Oz dominated); the upgrade-cost law — **upgrade CU ≈ 137,149 +
+171.1 × binary bytes, residuals ≤ ±0.43% over six sizes** (approximate:
+same-size binaries differ by up to 1,280 CU); ephemeral fleets
 (950 creations in one transaction, resizes ~SU-free); ephemeral-create
-pricing (6,303 CU, SU 0 — vs SU 1
-for permanent); block-history read pricing (18 CU per block, no syscall);
+pricing (6,303 CU/transaction single, ~2,611 marginal in a batch —
+different quantities, reconciled in example 12 — SU 0 vs SU 1
+for permanent); `increment_anonymous_segment_sz` = 512 + 4,096/page
+grown, rejecting non-page-multiple deltas like its 0x00 sibling;
+program-side `account_transfer` is owner-authorized only — moving balance
+from an account the program owns works (5,453 CU), moving from the fee
+payer is rejected (−10); block-history read pricing (18 CU per block, no syscall);
 entry stub maps exactly one 4KB stack page and the
 stack never grows on demand; every transaction's floor therefore includes
 512 + 4,096 before user code; program image including .data/.bss is
@@ -138,15 +145,19 @@ sequential hops); the SDK txn accessors read top-level data, so
 quickstart-pattern programs cannot be CPI callees; CPI events attribute to
 the emitting frame's program.
 
-**UNVERIFIED (12):** the ephemeral any-party garbage-collection claim
+**UNVERIFIED (14):** the ephemeral any-party garbage-collection claim
 (both test paths blocked: the compress syscall's proof shape is
 undocumented (−43 even with proof size 0), and the CLI path needs the
 desynced proof service); the per-byte reading of anonymous allocation; the
 ~1,430 CU create-syscall residual attribution; 04's intercept instruction
 term (never independently counted); the docs-figure reconciliation
-attribution; the event-header layout interpretation; deployment cost as a
-function of binary size (single sample); the `user_error` register-echo
-interpretation; the ~32,100–32,300-byte single-transaction
+attribution; the event-header layout interpretation; first-deploy cost as a
+function of binary size (single 838 B sample — the *upgrade* path is now
+fitted over six sizes, the create path is not); the `user_error`
+register-echo interpretation; `account_set_flags` semantics (−41 for
+flags 0 and 1 on a writable owned ephemeral; what it expects is unknown);
+`account_create_eoa`'s purpose and requirements (−22 with NULL
+signature/proof; SDK-only, unspecced); the ~32,100–32,300-byte single-transaction
 decompression ceiling (unprobed — the CLI auto-switches to its chunked
 flow); the creating-proof staleness boundary (90 s accepted; limit
 untested); the compression formula's proof-byte term (inferred from
@@ -251,11 +262,11 @@ disassembly, 0x0A/0x0B/0x0C/0x0D in measured programs).
 | # | Syscall | Exercised | Measured cost (alphanet, CLI 0.3.2, 2026-08) | What it does |
 |---|---|---|---|---|
 | 0x00 | `set_anonymous_segment_sz` | yes (01, 05, 06) | 512 + 4,096/newly mapped page; rejects non-page multiples; runs in EVERY txn via the entry stub | size the stack/heap segment |
-| 0x01 | `increment_anonymous_segment_sz` | no | — | grow an anonymous segment by a delta |
+| 0x01 | `increment_anonymous_segment_sz` | yes (05 v4) | 512 + 4,096/page grown (+1 page 38,791; +4 pages 51,079 over the 34,127 re-baseline; ~56 CU setup); rejects non-page-multiple deltas (−28) — same page-granular rule as 0x00 | grow an anonymous segment by a delta |
 | 0x02 | `set_account_data_writable` | yes (02, 03, 08) | 512 | enable writes to an account this txn |
-| 0x03 | `account_transfer` | no | — | move balance between accounts |
+| 0x03 | `account_transfer` | yes (02 `pay_out`) | 512 (op total 5,453, 3×) — works with SOURCE = an account this program owns; SOURCE = fee payer is rejected (−10): programs cannot spend the fee payer's balance | move balance between accounts |
 | 0x04 | `account_create` | yes (02, 03, 08) | 512 + 1 CU/proof byte + ~1,430 payload work (attribution UNVERIFIED) | create a PDA with a state proof |
-| 0x05 | `account_create_ephemeral` | no | — | create an ephemeral account |
+| 0x05 | `account_create_ephemeral` | yes (12) | 512 (op total 6,303, 4× across two binaries); SU 0; no proof — works during proof outages | create an ephemeral account |
 | 0x06 | `account_delete` | yes (02) | 512 (op total 5,401); needs data size 0; refunds nothing | delete an empty account |
 | 0x07 | `account_resize` | yes (02, 08) | 512 + 1 CU/byte grown; shrink free; SU = ceil(grown/4096) | resize account data |
 | 0x08 | `account_compress` | attempted (08) | **blocked**: −43 with every obtainable proof (shape undocumented); the system-program path measures 5,853 + 1 CU/acct B + 1 CU/proof B | archive an account to a compressed leaf |
@@ -264,11 +275,17 @@ disassembly, 0x0A/0x0B/0x0C/0x0D in measured programs).
 | 0x0B | `exit` | yes (all) | **0** (corrects the blanket 512) | terminate (return/revert) |
 | 0x0C | `log` | yes (06) | 512 + 1 CU/byte | log data |
 | 0x0D | `emit_event` | yes (04, 05) | 512 + 1 CU/byte + 10 B record overhead/event | emit an event |
-| 0x0E | `account_set_flags` | no | — | set account flags |
-| 0x0F | `account_create_eoa` | no | — | create an externally-owned account |
+| 0x0E | `account_set_flags` | attempted (12) | **blocked**: −41 for flags 0 and 1 on a writable program-owned ephemeral (4 txns); expected flag values / preconditions undocumented | set account flags |
+| 0x0F | `account_create_eoa` | attempted (12) | **blocked**: −22 with NULL signature/proof on a fresh derived address — demands an argument whose shape is undocumented (syscall exists only in the SDK header) | create an externally-owned account |
 
-Coverage: **9 of 16 measured, 2 attempted-and-blocked (compress/decompress
-program-side), 5 untouched** (0x01, 0x03, 0x05, 0x0E, 0x0F).
+Coverage (2026-08-03): **12 of 16 measured, 4 attempted-and-blocked, 0
+untouched.** The four blocked — 0x08/0x09 program-side compress/decompress
+(−43), 0x0E set_flags (−41), 0x0F create_eoa (−22) — all fail on an
+undocumented *argument-shape* wall (proof layout, flag semantics,
+signature/proof requirement), not on authorization. None of the four
+needed permanent account creation to probe; every probe this session ran
+via upgrade + ephemeral accounts, i.e. entirely inside what works during
+the proof desync.
 
 ## Cost table
 

@@ -398,3 +398,59 @@ leaves a similar single-digit residual. The entry stub requests exactly
 4,096 bytes (`lui t4,0x1`; `sub a0,t3,t4` — disassembly), so the page term
 is exact. Verdict: **closed from 36 to 4; the final 4 CU is unexplained**
 and flagged in the README.
+
+## 2026-08-03 additions — upgrade law, syscall coverage push, ephemeral reconciliation
+
+**Upgrade-cost law ≈ 137,149 + 171.1 CU/byte (APPROXIMATE, ±0.43%).**
+Least squares over all six -O binaries (1,216→345,340; 1,280→355,264;
+1,344→366,340; 1,344→367,620; 2,376→546,100; 3,496→734,292). What would
+refute it: a seventh size falling >0.5% off the line — reachable any time
+via another upgrade cycle. Known irreducible residual: the two 1,344-byte
+binaries differ by 1,280 CU at identical size, so per-instance content /
+proof terms exist that these points cannot separate. The earlier
+"≈170–195 CU/byte" phrasing is superseded: it absorbed a 137k intercept
+into a slope — the third occurrence of that error class here (compress
+law, decompress law, upgrade law). `bench/verify.py` checks the fit at
+0.5% tolerance.
+
+**`increment_anonymous_segment_sz` (0x01) = 512 + 4,096/page, page-granular.**
++1 page = 38,791, +4 pages = 51,079 over a 34,127 re-baseline (3× each);
+the 3-page difference is exactly 12,288. Non-page-multiple delta (+100)
+rejected with −28, mirroring 0x00. Refutable by any per-byte-granular
+grow succeeding — same unreachable-refutation caveat as 0x00's per-byte
+question. UNDOCUMENTED (costs); the rejection CONFIRMS the page-granular
+API family behavior.
+
+**`account_transfer` (0x03) is owner-authorized: works from an owned
+account (5,453 CU, 3×, balance 100→85 observed), rejected −10 when the
+source is the fee payer.** Refutable if a program-side fee-payer-source
+transfer ever succeeds (e.g. under a flag or signature we did not supply).
+UNDOCUMENTED. Note the CLI's own `transfer` spends the fee payer fine —
+the authorization boundary is specifically *programs* spending accounts
+they do not own.
+
+**`account_set_flags` (0x0E): BLOCKED −41** for flags 0 (3×) and 1 (1×) on
+a writable program-owned ephemeral. UNVERIFIED what it expects — flag
+semantics undocumented. Refutation path: spec/SDK documenting legal flag
+values, or a successful call with another value/account kind.
+
+**`account_create_eoa` (0x0F): BLOCKED −22** with NULL signature/proof on
+a fresh derived address. UNVERIFIED beyond "exists and validates
+arguments". SDK-only, unspecced. The −22 is consistent with a mandatory
+signature/proof argument; its shape is unknown.
+
+**6,303 vs ≈2,611 ephemeral create: reconciled, not contradictory.**
+6,303 = whole single-create transaction (floor 4,608 included, no
+resize); ≈2,611 = marginal per-account in a 950-batch including
+writable+resize (+1,024) with the floor amortized. Like-for-like residual
+~108 CU attributed to per-iteration codegen/seed handling — that
+attribution is UNVERIFIED (would need a single-create variant that also
+resizes, and a batch variant that doesn't).
+
+**bench/estimate.py validation: 89 rows predicted, 89 exact (error 0).**
+Honest scope: the instruction term is calibrated per family from 1–2
+recorded rows (exactly the repo's calibrate-then-predict doctrine), so
+this validates the *additive model and its constants*, not a priori
+prediction. Categories excluded and stated in the tool's output: create
+internals, deploy/upgrade pipeline sub-transactions, 04's small-input
+tail (L=0/32), degraded-chain rows.

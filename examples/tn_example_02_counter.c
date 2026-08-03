@@ -22,6 +22,7 @@
 #define EX02_INSTR_DELETE      (4U)
 #define EX02_INSTR_WRITE_AT    (5U)
 #define EX02_INSTR_WRITE_TWO   (6U)
+#define EX02_INSTR_PAY_OUT     (7U)
 
 typedef struct __attribute__((packed)) {
     uint   instruction_type;
@@ -172,6 +173,23 @@ TSDK_ENTRYPOINT_FN void start(void) {
                 (ex02_resize_args_t const *)instruction_data;
             handle_write_at(args->account_index, args->new_size,
                             *instruction_type == EX02_INSTR_WRITE_TWO);
+            break;
+        }
+        case EX02_INSTR_PAY_OUT: {
+            /* transfer <u32 amount> from the program-owned account at
+               args.account_index to the fee payer (idx 0) — exercises
+               tsys_account_transfer with proper (owner) authorization */
+            if (instruction_data_sz != sizeof(ex02_resize_args_t)) {
+                tsdk_revert(EX02_ERR_BAD_SIZE);
+            }
+            ex02_resize_args_t const *args =
+                (ex02_resize_args_t const *)instruction_data;
+            ulong r = tsys_account_transfer((ulong)args->account_index, 0UL,
+                                            (ulong)args->new_size);
+            if (r != TSDK_SUCCESS) {
+                tsdk_revert(0x2100UL + r);
+            }
+            tsdk_return(TSDK_SUCCESS);
             break;
         }
         case EX02_INSTR_DELETE: {

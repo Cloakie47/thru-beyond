@@ -32,8 +32,9 @@ and state units bill ceil(bytes grown/4096) on account growth, are 1 per
 create, and are never refunded by any operation.
 
 **Domain of validity:** alphanet under CLI 0.3.2; syscall base verified for
-7 of the 16 syscalls (log, emit, set-segment, set-writable, resize, delete,
-invoke — plus exit = 0); account sizes tested 0–65,536 bytes; instruction
+10 of the 16 syscalls (log, emit, set-segment, increment-segment,
+set-writable, resize, delete, invoke, transfer, create-ephemeral — plus
+exit = 0); account sizes tested 0–65,536 bytes; instruction
 term verified on ALU/load/store loop bodies; cross-program invocation
 priced across all 16 call depths (example 07: 1,511 CU per same-depth hop,
 +4,096 per depth level, frame pages reused for breadth; callee reverts
@@ -60,14 +61,26 @@ is extrapolation.
 - **UNDOCUMENTED: 28** — including the 1-page never-growing stack, the
   read-only program image (no writable globals), event pages CU-free but
   MU-charged, MU ≡ `Pages Used`, resize/delete semantics and the SU
-  formula, failed transactions reporting no CU, CPI pricing and the SDK
+  formula, signature-gated failure observability (`txn get` reports full
+  figures for reverted transactions; `execute` prints neither signature
+  nor figures), CPI pricing and the SDK
   accessor trap, Pages = deepest call depth, the full compression
   economics, the ~1–5 minute compressed-leaf indexing lag, the -O3-largest
   binary observation, and syscall 0x0F existing only in the SDK header.
-- **UNVERIFIED: 11** — flagged in AUDIT.md; the largest are the anonymous
+- **UNVERIFIED: 14** — flagged in AUDIT.md; the largest are the anonymous
   per-byte unification (unreachable refutation: the API is page-granular),
-  the create-syscall residual (~1,430 CU), and the optimization-level
-  runtime-CU comparison (gated on the desync).
+  the create-syscall residual (~1,430 CU), the ephemeral GC claim, and
+  the two syscalls blocked on undocumented argument shapes
+  (`account_set_flags` −41, `account_create_eoa` −22).
+
+Headline counts as of 2026-08-03: **CONFIRMS 18 / CORRECTS 5 /
+UNDOCUMENTED 37 / UNVERIFIED 14** — the root README's findings ledger is
+the itemized source of truth and supersedes the per-item lists above where
+they lag. Additions since this section was first written: both transaction
+limits, MU-peak charging, ephemeral pricing and fleets, the
+account-scaling ladders, the upgrade-cost law (≈137,149 + 171.1 CU/byte,
+±0.43%), `increment_anonymous_segment_sz` pricing, and the owner-only
+transfer authorization asymmetry.
 
 Two retractions are part of the record, both caught by the repo's own
 audit discipline: "max call depth 15" (a recursion miscount; the header's
@@ -96,20 +109,27 @@ the spec before measuring; measure anyway.
    (320,292 CU for an 838 B program — single sample).
 3. **Trust only what you can measure, and know what you can't.** Execution
    is deterministic and exactly linear, so one calibration measurement
-   predicts everything — but consumed memory units are reported nowhere,
-   failed transactions report no CU at all (issues #36, #39), and `Pages
-   Used` mixes charged and uncharged pages.
+   predicts everything — and consumed memory units ARE reported: the CLI's
+   `Pages Used` is the consumed-MU meter (28/28 transactions), mixing
+   CU-charged and CU-free pages by design. Reverted transactions report
+   full figures via `thru txn get` if you captured the signature; the
+   `execute` error path just never prints one (issues #36, #39, both
+   corrected on-thread).
 
 ## Known limitations, in one list
 
 - Single machine, single environment (WSL2 Ubuntu on one laptop).
 - One CLI/toolchain/SDK version (0.3.2) against one node version on
   alphanet only; no mainnet, no version comparison.
-- Deployment cost is a single sample at one binary size.
+- First-deploy cost is a single sample at one binary size; the upgrade
+  pipeline is fitted over six sizes (≈137,149 + 171.1 CU/byte, ±0.43%)
+  but is approximate, not exact.
 - Instruction-path decompositions of the fixed floors are hand-counted from
   disassembly (±4 CU unexplained in noop; 04's intercept term never counted).
-- 6 of 16 syscalls measured; no cross-program invocation; no heap-segment
-  measurements; no MU measurements (unobservable from the CLI).
+- 12 of 16 syscalls measured, 4 blocked on undocumented argument shapes
+  (program-side compress/decompress, set_flags, create_eoa); CPI fully
+  priced; MU measured (≡ `Pages Used`); still no heap-segment
+  measurements.
 - The docs-quickstart comparison carries unexplained residuals of +1.4–2.3%
   (their binary is unavailable).
 - Event-buffer provisioning is unobservable; "counted but never charged"

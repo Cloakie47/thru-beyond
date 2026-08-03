@@ -1,0 +1,7 @@
+{"example":"12-ephemeral","cli":"0.3.2+54058649","network":"alphanet","program":"tahE2pWV9nqlASlyX7PTaTXCfx7iLC8l7E29FVPSMxcxfY","note":"ephemeral lab runs on the ex08 program via upgrade; syscall probes 0x03/0x0E/0x0F share this binary","rows":[
+{"instr":"create_ephemeral","date":"2026-08-02","cu":6303,"su":0,"pages":1,"runs":3,"note":"three seeds, during -23 proof desync"},
+{"instr":"create_ephemeral","date":"2026-08-03","cu":6303,"su":0,"runs":1,"seed":"eph_d","note":"re-confirmed on the v-latest binary (dispatch grew; create path unchanged)"},
+{"instr":"transfer_from_feepayer","date":"2026-08-03","failed":true,"user_error":"0x83F6","syscall_error":-10,"runs":3,"note":"program-side tsys_account_transfer with SOURCE = fee payer (idx 0) rejected; owner-side source works (02 pay_out, 5,453 CU)"},
+{"instr":"set_flags","date":"2026-08-03","failed":true,"user_error":"0x84D7","syscall_error":-41,"runs":3,"note":"tsys_account_set_flags on a writable ephemeral owned by this program; flags=0 (3x) and flags=1 (1x) all rejected -41"},
+{"instr":"create_eoa","date":"2026-08-03","failed":true,"user_error":"0x85EA","syscall_error":-22,"runs":1,"note":"0x0F with NULL signature / proof size 0 on a fresh derived address; -22 suggests a required signature/proof argument whose shape is undocumented (SDK-only syscall)"}
+]}

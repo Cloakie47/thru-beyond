@@ -1,7 +1,7 @@
-# How we were wrong — three failure modes from a measurement project
+# How we were wrong — four failure modes from a measurement project
 
 This repo spent several days measuring the true costs of a blockchain VM.
-It published three kinds of wrong result along the way, each caught and
+It published four kinds of wrong result along the way, each caught and
 corrected by its own process. The failure modes are not blockchain
 failures; they are measurement failures, and they generalize to any
 engineering work that turns observations into claims.
@@ -74,9 +74,35 @@ API — and inspect at least one raw, unfiltered output from each. Scope
 the written claim to the surfaces actually checked. And when a claim is
 about *absence*, treat your own tooling as the first suspect.
 
+## 4. The constant absorbed into the slope — three times
+
+**The case.** Three separate published cost laws quoted a per-byte rate
+that silently swallowed a large fixed term. The compression law's first
+fit folded proof bytes and part of the intercept into a "1.0005 CU/byte"
+slope; the decompression law repeated the identical mistake days after
+the first was corrected; and the program-upgrade figure was published as
+"≈170–195 CU per binary byte" when the data is actually a line with a
+137,149-CU intercept — no single data point reproduces from the quoted
+rate (345,340 CU for 1,216 bytes is 284 "CU/byte"). Each law looked
+plausible because the sampled sizes were large enough that the constant
+hid inside the rate's scatter.
+
+**The root cause.** Fitting a fresh law from scratch instead of first
+subtracting the terms already established, and publishing a rate without
+its intercept. Correcting one instance didn't fix the habit: the same
+error shipped twice more because each fit was done locally, and nobody
+grepped the repo for sibling figures fitted the same way.
+
+**The rule adopted.** Apply established laws first and fit only the
+residual; never publish a per-X rate without stating the intercept next
+to it; and when a fitting error is corrected once, sweep every other
+published fit for the same shape — the second and third occurrences were
+found exactly that way, and the verifier now recomputes each fit from
+the raw points.
+
 ## The common thread
 
-All three errors produced clean, reproducible, internally consistent
+All four errors produced clean, reproducible, internally consistent
 numbers. Reproducibility is not correctness: each wrong claim replicated
 perfectly, because the flaw was upstream of the measurement — in the
 design, the schedule, or the lens. The fixes that worked were all

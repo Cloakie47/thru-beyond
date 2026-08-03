@@ -37,6 +37,7 @@
 #define EX05_INSTR_FAULT_EXIT  (4U)
 #define EX05_INSTR_EMIT_TWO    (5U)
 #define EX05_INSTR_GROW_SHRINK (6U)
+#define EX05_INSTR_INC_SEG     (7U)
 
 typedef struct __attribute__((packed)) {
     uint instruction_type;
@@ -142,6 +143,20 @@ TSDK_ENTRYPOINT_FN void start(void) {
             }
             ex05_emit_two(n);
             break;
+        case EX05_INSTR_INC_SEG: {
+            /* exercise tsys_increment_anonymous_segment_sz (0x01): extend
+               the stack segment downward by n bytes beyond the 8 pages
+               already mapped. Returns the new region address. */
+            void *newaddr = NULL;
+            ulong r = tsys_increment_anonymous_segment_sz(
+                (void *)(EX05_STACK_TOP - EX05_STACK_PAGES * 4096UL),
+                (ulong)n, &newaddr);
+            if (r != TSDK_SUCCESS) {
+                tsdk_revert(0x5100UL + r);
+            }
+            tsdk_return(TSDK_SUCCESS);
+            break;
+        }
         case EX05_INSTR_GROW_SHRINK:
             /* MU peak-vs-end-state discriminator: the segment is already
                at 8 pages (grown above for every instruction); shrink it

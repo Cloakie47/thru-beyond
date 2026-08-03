@@ -90,6 +90,42 @@ TSDK_ENTRYPOINT_FN void start(uchar const *d, ulong sz) {
             tsdk_return(TSDK_SUCCESS);
             break;
         }
+        case 8U: { /* transfer: <u64 amount> from fee payer (0) to idx */
+            if (rem != 8UL) {
+                tsdk_revert(0x800CUL);
+            }
+            ulong amt = (ulong)ex08_rd32(p) | ((ulong)ex08_rd32(p + 4) << 32);
+            ulong r = tsys_account_transfer(0UL, (ulong)idx, amt);
+            if (r != TSDK_SUCCESS) {
+                tsdk_revert(0x8400UL + r);
+            }
+            tsdk_return(TSDK_SUCCESS);
+            break;
+        }
+        case 9U: { /* set_flags: <u8 flags> on idx */
+            if (rem != 1UL) {
+                tsdk_revert(0x800DUL);
+            }
+            ulong r = tsys_account_set_flags(idx, p[0]);
+            if (r != TSDK_SUCCESS) {
+                tsdk_revert(0x8500UL + r);
+            }
+            tsdk_return(TSDK_SUCCESS);
+            break;
+        }
+        case 10U: { /* create_eoa probe: <psz u32><proof> — NULL signature */
+            if (rem < 4UL) {
+                tsdk_revert(0x800EUL);
+            }
+            uint psz = ex08_rd32(p);
+            ulong r = tsys_account_create_eoa((ulong)idx, NULL,
+                                              psz ? p + 4 : NULL, psz);
+            if (r != TSDK_SUCCESS) {
+                tsdk_revert(0x8600UL + r);
+            }
+            tsdk_return(TSDK_SUCCESS);
+            break;
+        }
         case 6U: { /* create_ephemeral: <seed 32> — no proof, per spec */
             if (rem != 32UL) {
                 tsdk_revert(0x800BUL);

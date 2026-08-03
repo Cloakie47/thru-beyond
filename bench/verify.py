@@ -115,6 +115,39 @@ if "11-budgets" in data:
         check("O1 cheapest upgrade", ol["-O1"]["upgrade_cu"] ==
               min(r["upgrade_cu"] for r in ol.values()))
 
+print("== 11: upgrade CU ~= 137,149 + 171.1/byte (0.5% tolerance) ==")
+if "11-budgets" in data:
+    pts = [(r["binary_bytes"], r["upgrade_cu"]) for r in data["11-budgets"]
+           if "upgrade_cu" in r]
+    if pts:
+        n = len(pts)
+        sx = sum(x for x, _ in pts); sy = sum(y for _, y in pts)
+        sxx = sum(x * x for x, _ in pts); sxy = sum(x * y for x, y in pts)
+        slope = (n * sxy - sx * sy) / (n * sxx - sx * sx)
+        icept = (sy - slope * sx) / n
+        check("11 upgrade slope ~171.1", abs(slope - 171.134) < 0.5, round(slope, 3))
+        check("11 upgrade intercept ~137,149", abs(icept - 137149) < 500, round(icept))
+        for x, y in pts:
+            pred = icept + slope * x
+            check(f"11 upgrade {x}B within 0.5%", abs(pred - y) / y < 0.005,
+                  f"pred {round(pred)} vs {y}")
+
+print("== 02: pay_out (owner-side tsys_account_transfer) 3x identical ==")
+po = [r for r in data["02-counter"] if r["instr"] == "pay_out"]
+for r in po:
+    check("02 pay_out 5,453", r["cu"] == 5453 and r["runs"] == 3, r["cu"])
+
+print("== 05 v4: inc_seg page term = 4,096/page over re-baseline ==")
+v4 = {r["instr"]: r for r in data["05-events"] if r.get("binary") == "v4"}
+if "inc_seg_4096" in v4:
+    d1 = v4["inc_seg_4096"]["cu"] - v4["return_only"]["cu"]
+    d4 = v4["inc_seg_16384"]["cu"] - v4["return_only"]["cu"]
+    check("05 inc_seg +4 pages - +1 page = 3x4096",
+          v4["inc_seg_16384"]["cu"] - v4["inc_seg_4096"]["cu"] == 3 * 4096,
+          v4["inc_seg_16384"]["cu"] - v4["inc_seg_4096"]["cu"])
+    check("05 inc_seg pages 9/12", v4["inc_seg_4096"]["pages"] == 9
+          and v4["inc_seg_16384"]["pages"] == 12)
+
 print("== MU == Pages wherever both recorded ==")
 for ex, rows in data.items():
     for r in rows:

@@ -17,6 +17,14 @@ worked), created at 8 bytes each.
 resizes are essentially state-unit-free, unlike permanent accounts'
 1-SU-per-page growth. Second batch: 72 accounts, 192,599 CU, SU 1.
 
+**≈2,611 is not the same quantity as example 12's 6,303** — see the
+reconciliation in [12-ephemeral](../12-ephemeral/README.md): 6,303 is a
+whole one-create transaction (4,608 floor included, no resize), 2,611 is
+the marginal per-account cost inside one transaction and includes a
+writable + resize (+1,024 CU) the single create doesn't do. Quote 6,303
+for "one ephemeral account, one transaction" and ~2,611 for "each
+additional account in a batch".
+
 ## Part A — the per-account ladders (each cell ≥3 identical runs on key points)
 
 | N | touch_none CU | read_all CU | write_all CU | write Pages/MU |
@@ -69,8 +77,11 @@ two headline limits collide by construction.
 A real token payout needs recipients that can hold funds; ephemeral
 accounts cannot, and permanent creation is down. **Projection from
 measured figures, labeled as such:** floor 4,608 + 1,000 × (512 transfer
-base + ~20 instructions) ≈ **~537,000 CU** — about 0.18% of the default
-compute budget; CU is not the constraint. The binding constraint is
+base + ~20 instructions) ≈ **~537,000 CU** — about **0.18% of the CLI's
+default 300,000,000-CU request** (the basis of this percentage; against
+the field's u32 maximum of 4,294,967,295 it would be 0.0125% — the two
+denominators differ 14×, so always name the one you mean); CU is not the
+constraint. The binding constraint is
 transaction size: ~1,015 writable recipients + treasury fit. On these
 numbers, Thru's account limit is a real capability — a 1,000-recipient
 payout fits in one transaction with CU to spare — but the *measured*

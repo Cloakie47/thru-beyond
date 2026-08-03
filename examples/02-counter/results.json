@@ -26,5 +26,6 @@
 {"instr":"resize","date":"2026-08-02","binary":"v2","from":8,"to":4097,"cu":10084,"su":1,"pages":3,"mu":3,"baseline":5995,"runs":1},
 {"instr":"resize","date":"2026-08-02","binary":"v2","from":8,"to":8192,"cu":14179,"su":2,"pages":3,"mu":3,"baseline":5995,"runs":1},
 {"instr":"resize","date":"2026-08-02","binary":"v2","from":8,"to":65536,"cu":71523,"su":16,"pages":17,"mu":17,"baseline":5995,"runs":1},
-{"instr":"resize_shrink","date":"2026-08-02","binary":"v2","to":8,"cu":5995,"su":0,"runs":6}
+{"instr":"resize_shrink","date":"2026-08-02","binary":"v2","to":8,"cu":5995,"su":0,"runs":6},
+{"instr":"pay_out","date":"2026-08-03","binary":"v3","amount":5,"cu":5453,"runs":3,"note":"tsys_account_transfer from OWNED account d to fee payer; balance 100->85 over 3 runs. Fee-payer-source transfer from a program reverts -10 (see 08 rows)"}
 ]}
